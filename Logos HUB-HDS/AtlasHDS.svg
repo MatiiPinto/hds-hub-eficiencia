@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 230" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="460" height="230" fill="#20304f"/>
+  <!-- silueta edificio (sutil) -->
+  <g stroke="#3f5d86" stroke-width="1.4" fill="none" opacity="0.55">
+    <path d="M300 175 v-40 a40 40 0 0 1 80 0 v40"/>
+    <line x1="340" y1="92" x2="340" y2="80"/><circle cx="340" cy="75" r="4"/>
+    <rect x="262" y="175" width="156" height="34"/>
+    <line x1="262" y1="186" x2="418" y2="186"/>
+  </g>
+  <!-- pila de capas isométricas -->
+  <g>
+    <!-- capa inferior: camas -->
+    <g transform="translate(120,168)">
+      <polygon points="0,-30 64,0 0,30 -64,0" fill="#2f6df0" opacity="0.92"/>
+      <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round" opacity="0.92">
+        <path d="M-30,-2 l14,-7 l10,5 l-14,7 z"/><path d="M-30,-2 l0,7 M-6,-4 l0,7"/>
+        <path d="M2,8 l14,-7 l10,5 l-14,7 z"/><path d="M2,8 l0,7 M26,6 l0,7"/>
+      </g>
+    </g>
+    <!-- capa media: plano -->
+    <g transform="translate(120,128)">
+      <polygon points="0,-30 64,0 0,30 -64,0" fill="#2a5fd6"/>
+      <g fill="none" stroke="#cfe0ff" stroke-width="2.2" stroke-linejoin="round" opacity="0.95">
+        <path d="M-34,0 l24,-12 l30,15 l-24,12 z"/>
+        <path d="M-12,-11 l16,8 M2,-18 l14,7"/>
+      </g>
+    </g>
+    <!-- capa superior: H -->
+    <g transform="translate(120,86)">
+      <polygon points="0,-32 66,0 0,32 -66,0" fill="#2f6df0"/>
+      <path d="M-16,-9 h9 v6 h14 v-6 h9 v22 h-9 v-6 h-14 v6 h-9 z" fill="#ffffff"/>
+    </g>
+  </g>
+  <!-- wordmark -->
+  <text x="250" y="128" font-size="62" font-weight="800" letter-spacing="-1">
+    <tspan fill="#2f6df0">Atlas</tspan><tspan fill="#ffffff">HDS</tspan>
+  </text>
+</svg>

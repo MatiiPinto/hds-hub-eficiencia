@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script src="pm_config.js"></script>
+<script src="pm_gate.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cartera de Servicios — HDS</title>
+<link rel="icon" type="image/png" href="Logos%20HUB-HDS/favicon-nhds-amarillo-64.png">
+<link rel="icon" type="image/png" sizes="512x512" href="Logos%20HUB-HDS/favicon-nhds-amarillo-512.png">
+<link rel="shortcut icon" href="Logos%20HUB-HDS/favicon-nhds-amarillo-64.png">
+<link rel="apple-touch-icon" href="Logos%20HUB-HDS/favicon-nhds-amarillo-512.png">
+
+<script src="assets/vendor/tailwind-play.js"></script>
+<script src="assets/vendor/chart-4.4.0.umd.min.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  .scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+  .tab-active { background: #1e40af; color: white; }
+  .tab-inactive { background: #e2e8f0; color: #475569; }
+  .badge-ejecuta { background: #dbeafe; color: #1e40af; }
+  .badge-deriva { background: #fef3c7; color: #92400e; }
+  details > summary { cursor: pointer; }
+  details[open] > summary { background: #eff6ff; }
+  .area-row { background: #1e40af; color: white; }
+  .linea-row { background: #dbeafe; color: #1e3a8a; }
+  .product-row:hover { background: #f8fafc; }
+  @media print {
+    .no-print { display: none !important; }
+  }
+</style>
+</head>
+<body class="bg-slate-50">
+
+<!-- SHARED_DATA matrices (fuente única HDS) -->
+<script src="SHARED_DATA/cartera.js"></script>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow-lg sticky top-0 z-50">
+  <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <a href="index.html" title="Volver al HUB · Hospital del Salvador" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition text-white text-sm font-semibold border border-white/20" style="text-decoration:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>HUB</span>
+      </a>
+      <div class="bg-white text-blue-900 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xl">H</div>
+      <div>
+        <h1 class="text-xl font-bold">Cartera de Servicios — HDS</h1>
+        <p class="text-blue-200 text-xs">Hospital del Sur · Versión 1.0 · Mayo 2026 · Base · Matriz</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-4 text-sm">
+      <div class="text-right">
+        <div class="text-blue-200 text-xs">Total Productos</div>
+        <div class="font-bold text-lg" id="kpi-total">—</div>
+      </div>
+    </div>
+  </div>
+  <nav class="container mx-auto px-6 flex gap-2 pb-3 no-print">
+    <button data-view="dashboard" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-active">Dashboard</button>
+    <button data-view="explorar" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Explorar Cartera</button>
+    <button data-view="servicio" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Por Servicio Clínico</button>
+    <button data-view="issues" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Issues y Brechas</button>
+  </nav>
+</header>
+
+<main class="container mx-auto px-6 py-6">
+
+<!-- VIEW: DASHBOARD -->
+<section id="view-dashboard" class="view">
+  <h2 class="text-2xl font-bold text-slate-800 mb-2">Vista General de la Cartera</h2>
+  <p class="text-slate-500 mb-6 text-sm">Distribución de los productos del HDS por Centro de Responsabilidad, Área de Proceso y modalidad de provisión.</p>
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-600">
+      <div class="text-xs text-slate-500 uppercase">Centros de Responsabilidad</div>
+      <div class="text-3xl font-bold text-slate-800" id="kpi-centros">—</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-600">
+      <div class="text-xs text-slate-500 uppercase">Áreas de Proceso</div>
+      <div class="text-3xl font-bold text-slate-800" id="kpi-areas">—</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-amber-600">
+      <div class="text-xs text-slate-500 uppercase">Líneas de Producción</div>
+      <div class="text-3xl font-bold text-slate-800" id="kpi-lineas">—</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-rose-600">
+      <div class="text-xs text-slate-500 uppercase">Productos</div>
+      <div class="text-3xl font-bold text-slate-800" id="kpi-productos">—</div>
+    </div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow p-4">
+      <h3 class="font-semibold text-slate-700 mb-3">Productos por Centro de Responsabilidad</h3>
+      <canvas id="chart-centros" height="220"></canvas>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+      <h3 class="font-semibold text-slate-700 mb-3">Modalidad de Provisión</h3>
+      <canvas id="chart-modalidad" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-4 mb-6">
+    <h3 class="font-semibold text-slate-700 mb-3">Productos por Área de Proceso</h3>
+    <canvas id="chart-areas" height="100"></canvas>
+  </div>
+
+  <!-- Distribución por Servicio -->
+  <div class="bg-white rounded-lg shadow p-4">
+    <h3 class="font-semibold text-slate-700 mb-3">Top 15 Servicios Clínicos por # de Productos</h3>
+    <canvas id="chart-servicios" height="100"></canvas>
+  </div>
+</section>
+
+<!-- VIEW: EXPLORAR -->
+<section id="view-explorar" class="view hidden">
+  <h2 class="text-2xl font-bold text-slate-800 mb-2">Explorador de la Cartera</h2>
+  <p class="text-slate-500 mb-4 text-sm">Filtra y busca dentro de los 2.875 productos clasificados.</p>
+
+  <!-- Filtros -->
+  <div class="bg-white rounded-lg shadow p-4 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+      <div>
+        <label class="text-xs font-medium text-slate-600">Buscar</label>
+        <input id="f-search" type="text" placeholder="Producto, línea, especialidad..." class="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600">Centro</label>
+        <select id="f-centro" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-sm bg-white"></select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600">Área de Proceso</label>
+        <select id="f-area" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-sm bg-white"></select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600">Modalidad</label>
+        <select id="f-modalidad" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-sm bg-white">
+          <option value="">Todas</option>
+          <option value="HDS Ejecuta">HDS Ejecuta</option>
+          <option value="HDS Coordina/Deriva">HDS Coordina/Deriva</option>
+        </select>
+      </div>
+      <div class="flex items-end">
+        <button id="f-reset" class="w-full px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-sm">Limpiar filtros</button>
+      </div>
+    </div>
+    <div class="mt-3 text-sm text-slate-600">
+      Mostrando <span class="font-bold text-blue-700" id="result-count">0</span> productos
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="max-h-[600px] overflow-auto scrollbar">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-800 text-white sticky top-0 z-10">
+          <tr>
+            <th class="px-3 py-2 text-left">Centro</th>
+            <th class="px-3 py-2 text-left">Área</th>
+            <th class="px-3 py-2 text-left">Línea</th>
+            <th class="px-3 py-2 text-left">Producto</th>
+            <th class="px-3 py-2 text-left">Servicio Clínico</th>
+            <th class="px-3 py-2 text-left">Especialidad</th>
+            <th class="px-3 py-2 text-left">Modalidad</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-explorar"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- VIEW: POR SERVICIO -->
+<section id="view-servicio" class="view hidden">
+  <h2 class="text-2xl font-bold text-slate-800 mb-2">Vista por Servicio Clínico del HDS</h2>
+  <p class="text-slate-500 mb-4 text-sm">Cartera agrupada por la unidad/servicio del organigrama del hospital.</p>
+  <div id="servicios-container" class="space-y-2"></div>
+</section>
+
+<!-- VIEW: ISSUES -->
+<section id="view-issues" class="view hidden">
+  <h2 class="text-2xl font-bold text-slate-800 mb-2">Issues y Brechas Detectadas</h2>
+  <p class="text-slate-500 mb-4 text-sm">Hallazgos durante la construcción de la cartera que requieren validación con la encargada del servicio.</p>
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-800 text-white">
+        <tr>
+          <th class="px-3 py-2 text-left">#</th>
+          <th class="px-3 py-2 text-left">Categoría</th>
+          <th class="px-3 py-2 text-left">Issue</th>
+          <th class="px-3 py-2 text-left">Recomendación</th>
+          <th class="px-3 py-2 text-left">Estado</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-issues"></tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer class="bg-slate-100 border-t mt-12 py-4 text-center text-xs text-slate-500">
+  Cartera de Servicios HDS · Construida sobre la plantilla metodológica del SSMSO · v1.0
+</footer>
+
+<script src="data/cartera_raw.js"></script>
+<script>
+// ── MODO PÚBLICO / CONSULTA ──────────────────────────────────────────────
+// La copia publicada en la web se genera con PUBLIC_BUILD=true (el deploy lo
+// invierte): oculta la pestaña Issues (validación interna) y deja solo consulta.
+// Para probar localmente sin desplegar: agregá ?public=1 a la URL.
+const PUBLIC_BUILD = true; /*__PUBLIC_FLAG__*/
+const PUBLIC = PUBLIC_BUILD || new URLSearchParams(location.search).get('public')==='1';
+function applyPublicMode(){
+  if(!PUBLIC) return;
+  document.body.classList.add('public');
+  // Edición no hay (plataforma de consulta); lo interno es Issues y Brechas.
+  document.querySelectorAll('[data-view="issues"]').forEach(el=>el.remove());
+  const vi = document.getElementById('view-issues'); if(vi) vi.remove();
+}
+
+// === DATOS EMBEBIDOS ===
+const RAW = window.CARTERA_RAW;
+const DATA = RAW.all;
+const ISSUES = RAW.issues;
+
+// === UTILIDADES ===
+function unique(arr, key) {
+  return [...new Set(arr.map(r => r[key]).filter(Boolean))].sort();
+}
+function groupBy(arr, key) {
+  const m = {};
+  arr.forEach(r => { (m[r[key]] = m[r[key]] || []).push(r); });
+  return m;
+}
+function countBy(arr, key) {
+  const m = {};
+  arr.forEach(r => { m[r[key]] = (m[r[key]] || 0) + 1; });
+  return m;
+}
+
+// === NAVEGACIÓN ===
+function showView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.add('hidden'));
+  document.getElementById('view-'+v).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.dataset.view === v) {
+      b.classList.remove('tab-inactive'); b.classList.add('tab-active');
+    } else {
+      b.classList.remove('tab-active'); b.classList.add('tab-inactive');
+    }
+  });
+}
+document.querySelectorAll('.nav-btn').forEach(b => {
+  b.addEventListener('click', () => showView(b.dataset.view));
+});
+
+// === DASHBOARD ===
+function renderDashboard() {
+  const centros = countBy(DATA, 'centro');
+  const areas = unique(DATA.map(r => `${r.centro}|${r.area}`).map(s => ({k:s})), 'k').length;
+  const lineas = new Set(DATA.map(r => `${r.centro}|${r.area}|${r.linea}`)).size;
+  
+  document.getElementById('kpi-total').textContent = DATA.length.toLocaleString('es-CL');
+  document.getElementById('kpi-centros').textContent = Object.keys(centros).length;
+  document.getElementById('kpi-areas').textContent = new Set(DATA.map(r => `${r.centro}|${r.area}`)).size;
+  document.getElementById('kpi-lineas').textContent = lineas;
+  document.getElementById('kpi-productos').textContent = DATA.length.toLocaleString('es-CL');
+
+  // Chart centros
+  new Chart(document.getElementById('chart-centros'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(centros),
+      datasets: [{
+        data: Object.values(centros),
+        backgroundColor: ['#1d4ed8','#059669','#d97706','#dc2626']
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: {size: 11}}}}}
+  });
+
+  // Chart modalidad
+  const mod = countBy(DATA, 'modalidad');
+  new Chart(document.getElementById('chart-modalidad'), {
+    type: 'pie',
+    data: {
+      labels: Object.keys(mod),
+      datasets: [{
+        data: Object.values(mod),
+        backgroundColor: ['#3b82f6','#f59e0b']
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom'}}}
+  });
+
+  // Chart áreas
+  const areasCnt = countBy(DATA, 'area');
+  const areasSorted = Object.entries(areasCnt).sort((a,b) => b[1]-a[1]);
+  new Chart(document.getElementById('chart-areas'), {
+    type: 'bar',
+    data: {
+      labels: areasSorted.map(([k]) => k.length > 50 ? k.slice(0,47)+'...' : k),
+      datasets: [{
+        label: 'Productos',
+        data: areasSorted.map(([_,v]) => v),
+        backgroundColor: '#1e40af'
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, plugins: { legend: { display: false }},
+      scales: { x: { beginAtZero: true } }
+    }
+  });
+
+  // Chart servicios top15
+  const srv = countBy(DATA.filter(r => r.servicio), 'servicio');
+  const srvSorted = Object.entries(srv).sort((a,b) => b[1]-a[1]).slice(0,15);
+  new Chart(document.getElementById('chart-servicios'), {
+    type: 'bar',
+    data: {
+      labels: srvSorted.map(([k]) => k.length > 45 ? k.slice(0,42)+'...' : k),
+      datasets: [{
+        label: 'Productos',
+        data: srvSorted.map(([_,v]) => v),
+        backgroundColor: '#059669'
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, plugins: { legend: { display: false }},
+      scales: { x: { beginAtZero: true } }
+    }
+  });
+}
+
+// === EXPLORAR ===
+function setupExplorar() {
+  // Llenar selectores
+  const centros = unique(DATA, 'centro');
+  const selC = document.getElementById('f-centro');
+  selC.innerHTML = '<option value="">Todos los centros</option>' + 
+    centros.map(c => `<option value="${c}">${c}</option>`).join('');
+  
+  const updateAreas = () => {
+    const c = selC.value;
+    const filtered = c ? DATA.filter(r => r.centro === c) : DATA;
+    const areas = unique(filtered, 'area');
+    document.getElementById('f-area').innerHTML = '<option value="">Todas las áreas</option>' + 
+      areas.map(a => `<option value="${a}">${a}</option>`).join('');
+  };
+  selC.addEventListener('change', () => { updateAreas(); render(); });
+  document.getElementById('f-area').addEventListener('change', render);
+  document.getElementById('f-modalidad').addEventListener('change', render);
+  document.getElementById('f-search').addEventListener('input', render);
+  document.getElementById('f-reset').addEventListener('click', () => {
+    document.getElementById('f-search').value = '';
+    selC.value = ''; updateAreas();
+    document.getElementById('f-area').value = '';
+    document.getElementById('f-modalidad').value = '';
+    render();
+  });
+  updateAreas();
+  render();
+}
+function render() {
+  const q = document.getElementById('f-search').value.toLowerCase();
+  const c = document.getElementById('f-centro').value;
+  const a = document.getElementById('f-area').value;
+  const m = document.getElementById('f-modalidad').value;
+  
+  let filtered = DATA;
+  if (c) filtered = filtered.filter(r => r.centro === c);
+  if (a) filtered = filtered.filter(r => r.area === a);
+  if (m) filtered = filtered.filter(r => r.modalidad === m);
+  if (q) filtered = filtered.filter(r => 
+    (r.producto+' '+r.linea+' '+r.estamento+' '+r.servicio).toLowerCase().includes(q)
+  );
+  
+  document.getElementById('result-count').textContent = filtered.length.toLocaleString('es-CL');
+  
+  const limit = 500;
+  const slice = filtered.slice(0, limit);
+  const tbody = document.getElementById('tbody-explorar');
+  tbody.innerHTML = slice.map(r => `
+    <tr class="product-row border-b border-slate-100">
+      <td class="px-3 py-1 text-xs whitespace-nowrap">${r.centro.replace('Centro de Responsabilidad ','').replace('de Responsabilidad','')}</td>
+      <td class="px-3 py-1 text-xs">${r.area}</td>
+      <td class="px-3 py-1 text-xs">${r.linea}</td>
+      <td class="px-3 py-1 font-medium text-slate-800">${r.producto}</td>
+      <td class="px-3 py-1 text-xs text-slate-600">${r.servicio || ''}</td>
+      <td class="px-3 py-1 text-xs text-slate-600">${r.estamento || ''}</td>
+      <td class="px-3 py-1 text-xs">
+        <span class="px-2 py-0.5 rounded text-xs font-medium ${r.modalidad === 'HDS Ejecuta' ? 'badge-ejecuta' : 'badge-deriva'}">
+          ${r.modalidad === 'HDS Ejecuta' ? 'Ejecuta' : 'Deriva'}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+  
+  if (filtered.length > limit) {
+    tbody.innerHTML += `<tr><td colspan="7" class="text-center py-3 text-slate-500 text-xs italic bg-slate-50">
+      Mostrando ${limit} de ${filtered.length} resultados. Refina los filtros para ver más.
+    </td></tr>`;
+  }
+}
+
+// === POR SERVICIO ===
+function renderServicios() {
+  const byServ = groupBy(DATA.filter(r => r.servicio), 'servicio');
+  const sortedServ = Object.entries(byServ).sort((a,b) => b[1].length - a[1].length);
+  const cont = document.getElementById('servicios-container');
+  cont.innerHTML = sortedServ.map(([servicio, rows]) => {
+    const byCentro = groupBy(rows, 'centro');
+    const byArea = groupBy(rows, 'area');
+    return `
+      <details class="bg-white rounded-lg shadow">
+        <summary class="px-4 py-3 hover:bg-slate-50">
+          <span class="font-semibold text-slate-800">${servicio}</span>
+          <span class="ml-2 text-sm text-slate-500">${rows.length} productos · ${Object.keys(byArea).length} áreas</span>
+        </summary>
+        <div class="px-4 pb-3 text-sm">
+          ${Object.entries(byArea).map(([area, ars]) => `
+            <div class="border-l-2 border-blue-400 pl-3 mt-2">
+              <div class="font-medium text-blue-900 text-xs">${area} · ${ars.length}</div>
+              <ul class="ml-3 text-xs text-slate-600 mt-1 space-y-0.5">
+                ${ars.slice(0, 10).map(r => `<li>• ${r.producto}</li>`).join('')}
+                ${ars.length > 10 ? `<li class="italic text-slate-400">y ${ars.length-10} más...</li>` : ''}
+              </ul>
+            </div>
+          `).join('')}
+        </div>
+      </details>
+    `;
+  }).join('');
+}
+
+// === ISSUES ===
+function renderIssues() {
+  const t = document.getElementById('tbody-issues');
+  t.innerHTML = ISSUES.map(i => `
+    <tr class="border-b border-slate-100">
+      <td class="px-3 py-2 text-sm font-bold text-slate-600">${i.n}</td>
+      <td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs font-medium bg-slate-200">${i.categoria}</span></td>
+      <td class="px-3 py-2 text-sm text-slate-700">${i.issue}</td>
+      <td class="px-3 py-2 text-sm text-slate-600">${i.recomendacion}</td>
+      <td class="px-3 py-2 text-xs"><span class="px-2 py-1 rounded ${i.estado === 'Pendiente' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}">${i.estado}</span></td>
+    </tr>
+  `).join('');
+}
+
+// === INIT ===
+window.addEventListener('DOMContentLoaded', () => {
+  applyPublicMode();
+  renderDashboard();
+  setupExplorar();
+  renderServicios();
+  if(!PUBLIC) renderIssues();
+});
+</script>
+<script src="hub-home.js"></script>
+</body>
+</html>

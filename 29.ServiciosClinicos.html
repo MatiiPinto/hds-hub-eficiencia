@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script src="pm_config.js"></script>
+<script src="pm_gate.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Servicios Clínicos — HDS</title>
+<link rel="icon" type="image/png" href="Logos%20HUB-HDS/favicon-nhds-amarillo-64.png">
+<link rel="icon" type="image/png" sizes="512x512" href="Logos%20HUB-HDS/favicon-nhds-amarillo-512.png">
+<link rel="shortcut icon" href="Logos%20HUB-HDS/favicon-nhds-amarillo-64.png">
+<link rel="apple-touch-icon" href="Logos%20HUB-HDS/favicon-nhds-amarillo-512.png">
+
+<script src="assets/vendor/tailwind-play.js"></script>
+
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  .scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+  .tab-active { background: #1e40af; color: white; }
+  .tab-inactive { background: #e2e8f0; color: #475569; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* Acentos de categoría GES (robusto en file:// sin depender de clases JIT dinámicas) */
+  .cat-cardio { --acc:#e11d48; --accbg:#fff1f2; --acctx:#9f1239; }
+  .cat-resp   { --acc:#0ea5e9; --accbg:#f0f9ff; --acctx:#075985; }
+  .cat-metab  { --acc:#f59e0b; --accbg:#fffbeb; --acctx:#92400e; }
+  .cat-mental { --acc:#8b5cf6; --accbg:#f5f3ff; --acctx:#5b21b6; }
+  .cat-trauma { --acc:#f97316; --accbg:#fff7ed; --acctx:#9a3412; }
+  .cat-otros  { --acc:#14b8a6; --accbg:#f0fdfa; --acctx:#115e59; }
+  .ges-card { border-left: 5px solid var(--acc); transition: box-shadow .15s, transform .15s; }
+  .ges-card:hover { box-shadow: 0 10px 22px -8px rgba(15,23,42,.25); transform: translateY(-2px); }
+  .ges-num { background: var(--acc); }
+  .cat-pill { background: var(--accbg); color: var(--acctx); }
+
+  /* Categorización triage */
+  .tri-C1{background:#fee2e2;color:#991b1b;border-color:#ef4444}
+  .tri-C2{background:#ffedd5;color:#9a3412;border-color:#f97316}
+  .tri-C3{background:#fef3c7;color:#92400e;border-color:#f59e0b}
+  .tri-C4{background:#ecfccb;color:#3f6212;border-color:#84cc16}
+  .tri-C5{background:#d1fae5;color:#065f46;border-color:#10b981}
+
+  @media print { .no-print { display:none !important; } .view{display:block !important;} }
+</style>
+</head>
+<body class="bg-slate-50">
+
+<!-- ===== DATOS: registry + servicios (sumar un servicio = nueva línea aquí) ===== -->
+<script src="data/servicios/ueh.js"></script>
+<script src="data/servicios/pabellon.js"></script>
+
+<!-- ===== HEADER ===== -->
+<header class="bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow-lg sticky top-0 z-40">
+  <div class="container mx-auto px-6 py-4 flex justify-between items-center gap-4">
+    <div class="flex items-center gap-3 min-w-0">
+      <a href="index.html" title="Volver al HUB · Hospital del Salvador" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition text-white text-sm font-semibold border border-white/20" style="text-decoration:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>HUB</span>
+      </a>
+      <div class="bg-white text-blue-900 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">H</div>
+      <div class="min-w-0">
+        <h1 class="text-xl font-bold truncate">Servicios Clínicos — HDS</h1>
+        <p class="text-blue-200 text-xs truncate">Cockpit clínico · garantías, categorización y metas · referencia de turno</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 shrink-0">
+      <div class="text-right hidden sm:block">
+        <div class="text-blue-200 text-[11px] uppercase tracking-wide">Servicio</div>
+      </div>
+      <select id="svc-select" class="bg-white/95 text-blue-900 text-sm font-semibold rounded-lg px-3 py-2 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/60"></select>
+    </div>
+  </div>
+  <nav class="container mx-auto px-6 flex gap-2 pb-3 no-print">
+    <button data-view="cockpit" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-active">🩺 Cockpit Clínico</button>
+    <button data-view="gestion" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">📊 Gestión &amp; Acreditación</button>
+    <button data-view="constructor" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">🛠️ Constructor</button>
+  </nav>
+</header>
+
+<main class="container mx-auto px-6 py-6">
+
+  <!-- intro del servicio -->
+  <div id="svc-intro" class="mb-6"></div>
+
+  <!-- ===================== VIEW: COCKPIT CLÍNICO ===================== -->
+  <section id="view-cockpit" class="view active">
+
+    <!-- Categorización -->
+    <div class="mb-7">
+      <h2 id="lbl-triage-h" class="text-lg font-bold text-slate-800 mb-1">Ayuda de categorización</h2>
+      <p id="lbl-triage-p" class="text-slate-500 text-xs mb-3">Referencia rápida de triage. Alinear al procedimiento oficial de categorización (Acreditación AOC 1.2) del servicio.</p>
+      <div id="tri-grid" class="grid grid-cols-2 md:grid-cols-5 gap-3"></div>
+    </div>
+
+    <!-- GES -->
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
+      <div>
+        <h2 id="lbl-ges-h" class="text-lg font-bold text-slate-800">Garantías GES con reloj</h2>
+        <p id="lbl-ges-p" class="text-slate-500 text-xs">Plazos exigibles en urgencia. Toca una tarjeta para ver acceso, oportunidad y protección financiera.</p>
+      </div>
+      <input id="ges-search" type="search" placeholder="Buscar patología, n° GES…" class="w-64 max-w-full text-sm rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300">
+    </div>
+    <div id="ges-wrap" class="space-y-6"></div>
+  </section>
+
+  <!-- ===================== VIEW: GESTIÓN & ACREDITACIÓN ===================== -->
+  <section id="view-gestion" class="view">
+
+    <h2 class="text-lg font-bold text-slate-800 mb-1">Indicadores y metas de gestión</h2>
+    <p class="text-slate-500 text-xs mb-2">Metas exigibles a la unidad. <span class="font-semibold text-slate-600">Sin cifras de desempeño cargadas</span> — vista de referencia.</p>
+    <div id="ind-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8"></div>
+
+    <h2 class="text-lg font-bold text-slate-800 mb-1">Acreditación — características exigibles</h2>
+    <p class="text-slate-500 text-xs mb-3">Estándar Superintendencia de Salud. Cada característica lista sus indicadores (umbral) y protocolos asociados.</p>
+    <div id="acr-wrap" class="space-y-3 mb-8"></div>
+
+    <h2 class="text-lg font-bold text-slate-800 mb-1">Protocolos asociados sin indicador</h2>
+    <p class="text-slate-500 text-xs mb-3">Documentación de apoyo de referencia.</p>
+    <div id="docs-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8"></div>
+
+    <h2 class="text-lg font-bold text-slate-800 mb-1">Normativa y fuentes oficiales</h2>
+    <p class="text-slate-500 text-xs mb-3">Marcos que regulan los indicadores y garantías del servicio, con enlaces a los sitios oficiales.</p>
+    <div id="norm-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+  </section>
+
+  <!-- ===================== VIEW: CONSTRUCTOR ===================== -->
+  <section id="view-constructor" class="view">
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-5">
+      <h2 class="text-xl font-bold text-slate-800 mb-1">🛠️ Constructor de servicios</h2>
+      <p class="text-slate-500 text-sm">Crea o edita un servicio con el mismo formato. Agrega o quita cada elemento, pruébalo en vivo y descarga el archivo <code class="text-xs bg-slate-100 rounded px-1">data/servicios/&lt;id&gt;.js</code> listo para usar.</p>
+      <div class="flex flex-wrap gap-2 mt-4">
+        <button id="cb-new"   class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium">＋ Nuevo (vacío)</button>
+        <select id="cb-load" class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700">
+          <option value="">Cargar plantilla…</option>
+        </select>
+        <label class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium cursor-pointer">📂 Importar JSON
+          <input id="cb-import" type="file" accept=".json,application/json" class="hidden">
+        </label>
+        <span class="flex-1"></span>
+        <button id="cb-test"  class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">▶ Probar en vivo</button>
+        <button id="cb-dljs"  class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">⬇ Descargar .js</button>
+        <button id="cb-copy"  class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium">📋 Copiar JSON</button>
+      </div>
+      <div id="cb-msg" class="text-xs mt-2"></div>
+    </div>
+    <div id="cb-form" class="space-y-4"></div>
+  </section>
+
+</main>
+
+<footer class="container mx-auto px-6 py-6 text-center text-xs text-slate-400 no-print">
+  Plataforma de Servicios Clínicos · Hospital del Salvador · datos de referencia (solo lectura) — <span id="foot-src"></span>
+</footer>
+
+<!-- ===== MODAL DETALLE GES ===== -->
+<div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-y-auto scrollbar">
+    <div id="modal-head" class="p-5 border-b sticky top-0 bg-white rounded-t-2xl"></div>
+    <div id="modal-body" class="p-5 space-y-4 text-sm"></div>
+    <div class="p-4 border-t text-right">
+      <button id="modal-close" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  const REG = window.SVC_REGISTRY || [];
+  let SVC = null;
+
+  /* ---------- selector de servicio (extensible) ---------- */
+  function buildOptions() {
+    const sel = $("#svc-select");
+    const reg = window.SVC_REGISTRY || [];
+    const prev = sel.value;
+    if (!reg.length) { sel.innerHTML = '<option>Sin servicios</option>'; return; }
+    sel.innerHTML = reg.map((s) =>
+      `<option value="${esc(s.ref)}"${s.estado !== "activo" ? " disabled" : ""}>${esc(s.sigla)} · ${esc(s.nombre)}${s.estado !== "activo" ? " (próximamente)" : ""}</option>`
+    ).join("");
+    if (prev && reg.some((s) => s.ref === prev)) sel.value = prev;
+  }
+  function initSelector() {
+    const sel = $("#svc-select");
+    const reg = window.SVC_REGISTRY || [];
+    if (!reg.length) { sel.innerHTML = '<option>Sin servicios</option>'; return; }
+    buildOptions();
+    sel.addEventListener("change", () => loadService(sel.value));
+    loadService(reg.find((s) => s.estado === "activo")?.ref || reg[0].ref);
+  }
+
+  // API que usa el Constructor para refrescar y abrir servicios en vivo
+  window.SVC_SHELL = {
+    buildOptions: buildOptions,
+    open: function (ref) { buildOptions(); $("#svc-select").value = ref; loadService(ref); },
+  };
+
+  function loadService(ref) {
+    SVC = window[ref];
+    if (!SVC) return;
+    const L = SVC.labels || {};
+    $("#lbl-triage-h").textContent = L.triage || "Ayuda de categorización";
+    $("#lbl-triage-p").textContent = L.triageDesc || "Referencia rápida de triage. Alinear al procedimiento oficial de categorización (Acreditación AOC 1.2) del servicio.";
+    $("#lbl-ges-h").textContent = L.garantias || "Garantías GES con reloj";
+    $("#lbl-ges-p").textContent = L.garantiasDesc || "Plazos exigibles en urgencia. Toca una tarjeta para ver acceso, oportunidad y protección financiera.";
+    $("#ges-search").placeholder = L.buscar || "Buscar patología, n° GES…";
+    fuentesIdx = {};
+    (SVC.normativas || []).forEach((n) => { if (n.origen && n.enlaces && n.enlaces[0]) fuentesIdx[n.origen] = n.enlaces[0].url; });
+    renderIntro(); renderTriage(); renderGES(SVC.ges || []); renderIndicadores(); renderAcreditacion(); renderDocs(); renderNormativas();
+    $("#ges-search").value = "";
+    $("#foot-src").textContent = SVC.fuente || "";
+  }
+  let fuentesIdx = {};
+  const extLink = (url, label, cls) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="${cls || ""}">${esc(label)} <span aria-hidden="true">↗</span></a>`;
+
+  // Placeholder de sección vacía / en construcción
+  const ph = (msg) => `<div class="col-span-full text-center text-slate-400 text-sm bg-white/60 border border-dashed border-slate-300 rounded-xl py-8 px-4">🚧 ${esc(msg)}</div>`;
+
+  /* ---------- intro + KPIs ---------- */
+  function renderIntro() {
+    const k = (n, l, c) => `<div class="bg-white rounded-lg shadow-sm border-l-4 ${c} px-4 py-2">
+        <div class="text-2xl font-bold text-slate-800 leading-tight">${n}</div>
+        <div class="text-[11px] text-slate-500 uppercase tracking-wide">${l}</div></div>`;
+    $("#svc-intro").innerHTML = `
+      <div class="bg-white rounded-xl shadow-sm p-5 flex flex-col md:flex-row md:items-center gap-4 justify-between">
+        <div class="max-w-2xl">
+          <h2 class="text-xl font-bold text-slate-800">${esc(SVC.nombre)} <span class="text-slate-400 font-semibold">· ${esc(SVC.sigla)}</span>
+            ${SVC.enConstruccion ? '<span class="align-middle ml-2 text-[10px] font-bold text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">🚧 EN CONSTRUCCIÓN</span>' : ""}</h2>
+          <p class="text-slate-500 text-sm mt-1">${esc(SVC.descripcion)}</p>
+        </div>
+        <div class="grid grid-cols-3 gap-3 shrink-0">
+          ${k((SVC.ges || []).length, (SVC.labels && SVC.labels.kpiGarantias) || "Garantías GES", "border-rose-500")}
+          ${k((SVC.indicadores || []).length, "Indicadores", "border-blue-600")}
+          ${k((SVC.acreditacion || []).length, "Acreditación", "border-emerald-600")}
+        </div>
+      </div>`;
+  }
+
+  /* ---------- categorización ---------- */
+  function renderTriage() {
+    if (!(SVC.categorizacion || []).length) { $("#tri-grid").innerHTML = ph("Categorización por completar para este servicio."); return; }
+    $("#tri-grid").innerHTML = (SVC.categorizacion || []).map((t) => `
+      <div class="rounded-xl border-2 p-3" style="background:${pal(t.color).bg};color:${pal(t.color).tx};border-color:${pal(t.color).acc}">
+        <div class="flex items-baseline justify-between">
+          <span class="text-2xl font-extrabold">${esc(t.cat)}</span>
+          <span class="text-[11px] font-bold uppercase">${esc(t.meta)}</span>
+        </div>
+        <div class="font-semibold text-sm mt-0.5">${esc(t.nombre)}</div>
+        <div class="text-xs mt-1 opacity-90">${esc(t.desc)}</div>
+      </div>`).join("");
+  }
+
+  /* ---------- GES (agrupado por categoría) ---------- */
+  const catMap = () => Object.fromEntries((SVC.gesCategorias || []).map((c) => [c.id, c]));
+  // Paleta data-driven (por nombre de color) — permite categorías nuevas con color correcto.
+  const PAL = {
+    red:    { acc: "#ef4444", bg: "#fee2e2", tx: "#991b1b" },
+    rose:   { acc: "#e11d48", bg: "#fff1f2", tx: "#9f1239" },
+    orange: { acc: "#f97316", bg: "#ffedd5", tx: "#9a3412" },
+    amber:  { acc: "#f59e0b", bg: "#fef3c7", tx: "#92400e" },
+    lime:   { acc: "#84cc16", bg: "#ecfccb", tx: "#3f6212" },
+    emerald:{ acc: "#10b981", bg: "#d1fae5", tx: "#065f46" },
+    teal:   { acc: "#14b8a6", bg: "#f0fdfa", tx: "#115e59" },
+    sky:    { acc: "#0ea5e9", bg: "#f0f9ff", tx: "#075985" },
+    blue:   { acc: "#2563eb", bg: "#eff6ff", tx: "#1e40af" },
+    violet: { acc: "#8b5cf6", bg: "#f5f3ff", tx: "#5b21b6" },
+    _:      { acc: "#64748b", bg: "#f1f5f9", tx: "#334155" },
+  };
+  const pal = (name) => PAL[name] || PAL._;
+  const catVars = (catId) => { const c = catMap()[catId] || {}; const p = pal(c.color); return `--acc:${p.acc};--accbg:${p.bg};--acctx:${p.tx}`; };
+  function renderGES(list) {
+    const cats = catMap();
+    const wrap = $("#ges-wrap");
+    if (!(SVC.ges || []).length) { wrap.innerHTML = ph("Aún no se cargan garantías/procesos críticos para este servicio."); return; }
+    if (!list.length) { wrap.innerHTML = '<p class="text-slate-400 text-sm py-8 text-center">Sin coincidencias.</p>'; return; }
+    const groups = {};
+    list.forEach((g) => { (groups[g.cat] = groups[g.cat] || []).push(g); });
+    wrap.innerHTML = (SVC.gesCategorias || []).filter((c) => groups[c.id]).map((c) => `
+      <div>
+        <h3 class="text-sm font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-2">
+          <span class="inline-block w-3 h-3 rounded-full" style="background:${pal(c.color).acc}"></span>
+          <span style="color:${pal(c.color).tx}">${esc(c.nombre)}</span>
+          <span class="text-slate-300 font-normal">(${groups[c.id].length})</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          ${groups[c.id].map((g) => gesCard(g)).join("")}
+        </div>
+      </div>`).join("");
+    wrap.querySelectorAll("[data-ges]").forEach((el) =>
+      el.addEventListener("click", () => openModal(SVC.ges.find((x) => String(x.num) === el.dataset.ges))));
+  }
+  const itemPrefix = () => (SVC.labels && SVC.labels.itemPrefix) || "GES";
+  function gesCard(g) {
+    const c = catMap()[g.cat] || {};
+    return `<button data-ges="${g.num}" class="ges-card text-left bg-white rounded-xl shadow-sm p-4 w-full" style="${catVars(g.cat)}">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="ges-num text-white text-xs font-bold rounded-md px-2 py-0.5">${esc(itemPrefix())} ${g.num}</span>
+          <span class="cat-pill text-[10px] font-semibold rounded-full px-2 py-0.5">${esc(c.nombre || "")}</span>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm leading-snug mb-2">${esc(g.glosa)}</div>
+        <div class="flex items-start gap-1.5 text-xs text-slate-600">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mt-0.5 shrink-0 text-slate-400"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+          <span class="font-medium">${esc(g.plazoClave)}</span>
+        </div>
+      </button>`;
+  }
+
+  /* ---------- modal ---------- */
+  function openModal(g) {
+    if (!g) return;
+    const c = catMap()[g.cat] || {};
+    $("#modal-head").innerHTML = `
+      <div class="flex items-center gap-2 mb-1" style="${catVars(g.cat)}">
+        <span class="ges-num text-white text-xs font-bold rounded-md px-2 py-0.5">${esc(itemPrefix())} ${g.num}</span>
+        <span class="cat-pill text-[10px] font-semibold rounded-full px-2 py-0.5">${esc(c.nombre || "")}</span>
+      </div>
+      <h3 class="text-lg font-bold text-slate-800 leading-snug">${esc(g.glosa)}</h3>`;
+    const row = (label, val, color) => `
+      <div class="rounded-lg border border-slate-200 overflow-hidden">
+        <div class="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide ${color}">${label}</div>
+        <div class="px-3 py-2 text-slate-700">${esc(val)}</div></div>`;
+    $("#modal-body").innerHTML =
+      `<div class="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 flex items-center gap-2">
+         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+         <span class="text-blue-900 font-semibold">${esc(g.plazoClave)}</span>
+       </div>` +
+      (g.definicion ? `<p class="text-slate-500 text-xs italic">${esc(g.definicion)}</p>` : "") +
+      row("Garantía de acceso", g.acceso, "bg-emerald-50 text-emerald-800") +
+      row("Garantía de oportunidad", g.oportunidad, "bg-amber-50 text-amber-800") +
+      row("Protección financiera", g.proteccion, "bg-slate-50 text-slate-600") +
+      ((g.enlace || SVC.gesPortal)
+        ? `<div class="pt-1">${extLink((g.enlace && g.enlace.url) || SVC.gesPortal.url, (g.enlace && g.enlace.label) || SVC.gesPortal.label, "inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg px-3 py-2")}</div>`
+        : "");
+    const m = $("#modal"); m.classList.remove("hidden"); m.classList.add("flex");
+  }
+  function closeModal() { const m = $("#modal"); m.classList.add("hidden"); m.classList.remove("flex"); }
+
+  /* ---------- indicadores ---------- */
+  function renderIndicadores() {
+    if (!(SVC.indicadores || []).length) { $("#ind-grid").innerHTML = ph("Indicadores y metas por completar para este servicio."); return; }
+    $("#ind-grid").innerHTML = SVC.indicadores.map((i) => `
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+        <div class="flex items-center justify-between gap-2 mb-1">
+          ${fuentesIdx[i.origen]
+            ? `<a href="${esc(fuentesIdx[i.origen])}" target="_blank" rel="noopener noreferrer" class="text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded px-2 py-0.5" title="Abrir normativa oficial">${esc(i.origen)} · ${esc(i.sigla)} ↗</a>`
+            : `<span class="text-[11px] font-bold text-blue-700 bg-blue-50 rounded px-2 py-0.5">${esc(i.origen)} · ${esc(i.sigla)}</span>`}
+          <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 rounded px-2 py-0.5">Meta ${esc(i.meta)}</span>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm leading-snug">${esc(i.nombre)}</div>
+        <div class="text-xs text-slate-500 mt-1">${esc(i.objetivo)}</div>
+        <div class="text-[11px] text-slate-600 mt-2 bg-slate-50 rounded px-2 py-1.5 font-mono leading-snug">${esc(i.formula)}</div>
+        <div class="text-[10px] text-slate-400 mt-1.5 uppercase tracking-wide">Periodicidad: ${esc(i.periodicidad)} · ${esc(i.proceso)}</div>
+      </div>`).join("");
+  }
+
+  /* ---------- acreditación ---------- */
+  function renderAcreditacion() {
+    if (!(SVC.acreditacion || []).length) { $("#acr-wrap").innerHTML = ph("Características de acreditación por completar para este servicio."); return; }
+    $("#acr-wrap").innerHTML = SVC.acreditacion.map((a) => `
+      <details class="bg-white rounded-xl shadow-sm border border-slate-100 group">
+        <summary class="cursor-pointer list-none px-4 py-3 flex items-center gap-3">
+          <span class="text-xs font-bold text-slate-700 bg-slate-100 rounded px-2 py-0.5 shrink-0">${esc(a.caracteristica)}</span>
+          <span class="text-sm font-semibold text-slate-800 flex-1">${esc(a.denominacion)}</span>
+          ${a.obligatoria ? '<span class="text-[10px] font-bold text-rose-700 bg-rose-50 rounded-full px-2 py-0.5 shrink-0">OBLIGATORIA</span>' : '<span class="text-[10px] font-semibold text-slate-400 shrink-0">no oblig.</span>'}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-300 group-open:rotate-180 transition shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <div class="px-4 pb-4 pt-1">
+          <div class="text-[11px] text-slate-400 uppercase tracking-wide mb-1">${esc(a.ambito)}</div>
+          <div class="space-y-1.5 mb-3">
+            ${a.indicadores.map((x) => `<div class="flex items-center justify-between gap-2 text-sm bg-slate-50 rounded px-3 py-1.5">
+                <span class="text-slate-700">${esc(x.nombre)}</span>
+                <span class="text-[11px] font-bold text-emerald-700 bg-emerald-100 rounded px-2 py-0.5 shrink-0">${esc(x.umbral)}</span></div>`).join("")}
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            ${(a.documentos || []).map((d) => `<span class="text-[11px] text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">📄 ${esc(d)}</span>`).join("")}
+          </div>
+        </div>
+      </details>`).join("");
+  }
+
+  /* ---------- docs sin indicador ---------- */
+  function renderDocs() {
+    if (!(SVC.documentosSinIndicador || []).length) { $("#docs-grid").innerHTML = ph("Protocolos de apoyo por completar para este servicio."); return; }
+    $("#docs-grid").innerHTML = (SVC.documentosSinIndicador || []).map((g) => `
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+        <div class="font-semibold text-slate-700 text-sm mb-2">${esc(g.grupo)}</div>
+        <ul class="space-y-1">
+          ${g.docs.map((d) => `<li class="text-xs text-slate-500 flex items-start gap-1.5"><span class="text-slate-300">📄</span>${esc(d)}</li>`).join("")}
+        </ul>
+      </div>`).join("");
+  }
+
+  /* ---------- normativa y fuentes oficiales ---------- */
+  function renderNormativas() {
+    if (!(SVC.normativas || []).length) { $("#norm-grid").innerHTML = ph("Normativa y fuentes por completar para este servicio."); return; }
+    $("#norm-grid").innerHTML = SVC.normativas.map((n) => `
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-[11px] font-bold text-indigo-700 bg-indigo-50 rounded px-2 py-0.5">${esc(n.origen)}</span>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm leading-snug">${esc(n.titulo)}</div>
+        ${n.entidad ? `<div class="text-[11px] text-slate-400 mt-0.5">${esc(n.entidad)}</div>` : ""}
+        ${n.desc ? `<div class="text-xs text-slate-500 mt-1">${esc(n.desc)}</div>` : ""}
+        <div class="flex flex-wrap gap-1.5 mt-2">
+          ${(n.enlaces || []).map((e) => extLink(e.url, e.label, "text-[11px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-full px-2.5 py-1")).join("")}
+        </div>
+      </div>`).join("");
+  }
+
+  /* ---------- nav + búsqueda + eventos ---------- */
+  function initNav() {
+    document.querySelectorAll(".nav-btn").forEach((b) =>
+      b.addEventListener("click", () => {
+        document.querySelectorAll(".nav-btn").forEach((x) => { x.classList.remove("tab-active"); x.classList.add("tab-inactive"); });
+        b.classList.add("tab-active"); b.classList.remove("tab-inactive");
+        document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+        $("#view-" + b.dataset.view).classList.add("active");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }));
+    $("#ges-search").addEventListener("input", (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      renderGES(!q ? SVC.ges : SVC.ges.filter((g) =>
+        (g.glosa + " " + g.plazoClave + " GES " + g.num).toLowerCase().includes(q)));
+    });
+    $("#modal-close").addEventListener("click", closeModal);
+    $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+  }
+
+  initSelector();
+  initNav();
+})();
+</script>
+
+<!-- ===================== CONSTRUCTOR (motor) ===================== -->
+<script>
+(function () {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const COLORS = ["red", "rose", "orange", "amber", "lime", "emerald", "teal", "sky", "blue", "violet"];
+  const LS_KEY = "svc_builder_draft";
+
+  function emptyDraft() {
+    return {
+      id: "", sigla: "", nombre: "", descripcion: "", estado: "activo", enConstruccion: true, fuente: "",
+      labels: { garantias: "", garantiasDesc: "", kpiGarantias: "", itemPrefix: "", buscar: "", triage: "", triageDesc: "" },
+      gesPortal: { label: "", url: "" },
+      gesCategorias: [], ges: [], categorizacion: [], indicadores: [], acreditacion: [], documentosSinIndicador: [], normativas: [],
+    };
+  }
+  function normalize(d) {
+    const e = emptyDraft(); d = d || {};
+    const out = Object.assign(e, d);
+    out.labels = Object.assign(emptyDraft().labels, d.labels || {});
+    out.gesPortal = Object.assign(emptyDraft().gesPortal, d.gesPortal || {});
+    ["gesCategorias", "ges", "categorizacion", "indicadores", "acreditacion", "documentosSinIndicador", "normativas"].forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
+    out.acreditacion.forEach((a) => { if (!Array.isArray(a.indicadores)) a.indicadores = []; if (!Array.isArray(a.documentos)) a.documentos = []; });
+    out.documentosSinIndicador.forEach((g) => { if (!Array.isArray(g.docs)) g.docs = []; });
+    out.normativas.forEach((n) => { if (!Array.isArray(n.enlaces)) n.enlaces = []; });
+    return out;
+  }
+
+  const newItem = {
+    cat:   () => ({ id: "", nombre: "", color: COLORS[0] }),
+    ges:   () => ({ num: "", cat: "", glosa: "", plazoClave: "", definicion: "", acceso: "", oportunidad: "", proteccion: "" }),
+    clas:  () => ({ cat: "", nombre: "", meta: "", desc: "", color: COLORS[0] }),
+    ind:   () => ({ origen: "", sigla: "", nombre: "", meta: "", periodicidad: "Mensual", proceso: "", objetivo: "", formula: "" }),
+    acr:   () => ({ ambito: "", caracteristica: "", denominacion: "", obligatoria: false, indicadores: [], documentos: [] }),
+    acrInd:() => ({ nombre: "", umbral: "" }),
+    acrDoc:() => "",
+    dsi:   () => ({ grupo: "", docs: [] }),
+    dsiDoc:() => "",
+    norm:  () => ({ origen: "", titulo: "", entidad: "", desc: "", enlaces: [] }),
+    normEnl:() => ({ label: "", url: "" }),
+  };
+
+  let draft = normalize(JSON.parse(localStorage.getItem(LS_KEY) || "null") || emptyDraft());
+
+  /* ---- path helpers ---- */
+  function get(path) { return path.split(".").reduce((o, k) => (o == null ? o : o[k]), draft); }
+  function setP(path, v) { const p = path.split("."); let o = draft; for (let i = 0; i < p.length - 1; i++) o = o[p[i]]; o[p[p.length - 1]] = v; }
+  function delP(path) { const p = path.split("."); let o = draft; for (let i = 0; i < p.length - 1; i++) o = o[p[i]]; const last = p[p.length - 1]; Array.isArray(o) ? o.splice(Number(last), 1) : delete o[last]; }
+  function addP(path, type) { const o = path.split(".").reduce((a, k) => a[k], draft); o.push(newItem[type]()); }
+
+  /* ---- field builders ---- */
+  const inp = (path, val, ph, type) => `<input data-path="${path}" type="${type || "text"}" value="${esc(val)}" placeholder="${esc(ph || "")}" class="w-full text-sm rounded border border-slate-300 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-200">`;
+  const ta  = (path, val, ph) => `<textarea data-path="${path}" rows="2" placeholder="${esc(ph || "")}" class="w-full text-sm rounded border border-slate-300 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-200">${esc(val)}</textarea>`;
+  const selF = (path, val, opts) => `<select data-path="${path}" class="w-full text-sm rounded border border-slate-300 px-2 py-1.5 bg-white">${opts.map((o) => `<option value="${esc(o.v)}"${o.v === val ? " selected" : ""}>${esc(o.t)}</option>`).join("")}</select>`;
+  const chk = (path, val, label) => `<label class="inline-flex items-center gap-2 text-sm text-slate-700"><input data-path="${path}" type="checkbox"${val ? " checked" : ""} class="rounded"> ${esc(label)}</label>`;
+  const lab = (label, ctrl) => `<label class="block"><span class="text-[11px] font-semibold text-slate-500">${esc(label)}</span>${ctrl}</label>`;
+  const colorOpts = (v) => COLORS.map((c) => ({ v: c, t: c })).concat(v && COLORS.indexOf(v) < 0 ? [{ v: v, t: v }] : []);
+  const addBtn = (path, type, label) => `<button data-add="${path}" data-addtype="${type}" class="text-blue-600 hover:text-blue-800 text-xs font-semibold mt-1">＋ ${esc(label)}</button>`;
+  const delBtn = (path, label) => `<button data-del="${path}" class="text-rose-500 hover:text-rose-700 text-xs font-semibold">✕ ${esc(label || "quitar")}</button>`;
+  const itemBox = (inner) => `<div class="border border-slate-200 rounded-lg p-3 bg-slate-50/60">${inner}</div>`;
+  const strList = (basePath, arr, type, label) =>
+    (arr || []).map((s, i) => `<div class="flex gap-1 items-center mb-1">${inp(basePath + "." + i, s, label + "…")}${delBtn(basePath + "." + i, "")}</div>`).join("") + addBtn(basePath, type, "agregar " + label);
+
+  function section(title, count, inner, open) {
+    return `<details ${open ? "open" : ""} class="bg-white rounded-xl shadow-sm border border-slate-100">
+      <summary class="cursor-pointer list-none px-4 py-3 flex items-center gap-2 font-semibold text-slate-800 text-sm">
+        <span>${esc(title)}</span>${typeof count === "number" ? `<span class="text-xs text-slate-400">(${count})</span>` : ""}
+        <span class="flex-1"></span><span class="text-slate-300 text-xs group-open:rotate-180">▾</span>
+      </summary>
+      <div class="px-4 pb-4 space-y-3">${inner}</div></details>`;
+  }
+
+  const catSelOpts = () => [{ v: "", t: "(sin categoría)" }].concat((draft.gesCategorias || []).map((c) => ({ v: c.id, t: c.nombre || c.id })));
+
+  function render() {
+    const f = $("#cb-form");
+    let h = "";
+
+    // META
+    h += section("① Servicio", null, `
+      <div class="grid grid-cols-2 gap-2">
+        ${lab("id (minúsculas, sin espacios)", inp("id", draft.id, "ej: pabellon"))}
+        ${lab("sigla", inp("sigla", draft.sigla, "ej: PAB"))}
+      </div>
+      ${lab("nombre", inp("nombre", draft.nombre, "ej: Pabellón Quirúrgico"))}
+      ${lab("descripción", ta("descripcion", draft.descripcion))}
+      <div class="grid grid-cols-2 gap-2 items-end">
+        ${lab("estado", selF("estado", draft.estado, [{ v: "activo", t: "activo" }, { v: "proximamente", t: "próximamente" }]))}
+        <div class="pb-1.5">${chk("enConstruccion", draft.enConstruccion, "En construcción (muestra badge 🚧)")}</div>
+      </div>
+      ${lab("fuente (texto de pie)", inp("fuente", draft.fuente))}`, true);
+
+    // LABELS
+    h += section("② Etiquetas de secciones (opcional)", null, `
+      <div class="grid grid-cols-2 gap-2">
+        ${lab("Título 'garantías'", inp("labels.garantias", draft.labels.garantias, "Garantías GES con reloj"))}
+        ${lab("Prefijo de ítem", inp("labels.itemPrefix", draft.labels.itemPrefix, "GES / Paso"))}
+        ${lab("KPI 'garantías'", inp("labels.kpiGarantias", draft.labels.kpiGarantias, "Garantías GES"))}
+        ${lab("Placeholder buscador", inp("labels.buscar", draft.labels.buscar, "Buscar…"))}
+        ${lab("Título 'categorización'", inp("labels.triage", draft.labels.triage, "Ayuda de categorización"))}
+      </div>
+      ${lab("Descripción 'garantías'", inp("labels.garantiasDesc", draft.labels.garantiasDesc))}
+      ${lab("Descripción 'categorización'", inp("labels.triageDesc", draft.labels.triageDesc))}`, false);
+
+    // CATEGORIAS
+    h += section("③ Categorías de garantías", (draft.gesCategorias || []).length,
+      (draft.gesCategorias || []).map((c, i) => itemBox(
+        `<div class="flex justify-between mb-1"><span class="text-xs font-bold text-slate-400">#${i + 1}</span>${delBtn("gesCategorias." + i)}</div>
+         <div class="grid grid-cols-3 gap-2">
+           ${lab("id", inp("gesCategorias." + i + ".id", c.id, "cardio"))}
+           ${lab("nombre", inp("gesCategorias." + i + ".nombre", c.nombre, "Cardiovascular"))}
+           ${lab("color", selF("gesCategorias." + i + ".color", c.color, colorOpts(c.color)))}
+         </div>`)).join("") + addBtn("gesCategorias", "cat", "agregar categoría"), false);
+
+    // GES / PROCESOS
+    h += section("④ Garantías / procesos", (draft.ges || []).length,
+      (draft.ges || []).map((g, i) => itemBox(
+        `<div class="flex justify-between mb-1"><span class="text-xs font-bold text-slate-400">#${i + 1}</span>${delBtn("ges." + i)}</div>
+         <div class="grid grid-cols-2 gap-2">
+           ${lab("N°", inp("ges." + i + ".num", g.num, "", "number"))}
+           ${lab("categoría", selF("ges." + i + ".cat", g.cat, catSelOpts()))}
+         </div>
+         ${lab("glosa", inp("ges." + i + ".glosa", g.glosa))}
+         ${lab("plazo clave", inp("ges." + i + ".plazoClave", g.plazoClave, "ECG ≤30 min…"))}
+         ${lab("definición", ta("ges." + i + ".definicion", g.definicion))}
+         ${lab("garantía de acceso", ta("ges." + i + ".acceso", g.acceso))}
+         ${lab("garantía de oportunidad", ta("ges." + i + ".oportunidad", g.oportunidad))}
+         ${lab("protección financiera", ta("ges." + i + ".proteccion", g.proteccion))}`)).join("") + addBtn("ges", "ges", "agregar garantía/proceso"), false);
+
+    // CATEGORIZACION
+    h += section("⑤ Categorización / clasificación", (draft.categorizacion || []).length,
+      (draft.categorizacion || []).map((t, i) => itemBox(
+        `<div class="flex justify-between mb-1"><span class="text-xs font-bold text-slate-400">#${i + 1}</span>${delBtn("categorizacion." + i)}</div>
+         <div class="grid grid-cols-3 gap-2">
+           ${lab("código", inp("categorizacion." + i + ".cat", t.cat, "C1"))}
+           ${lab("nombre", inp("categorizacion." + i + ".nombre", t.nombre, "Resucitación"))}
+           ${lab("color", selF("categorizacion." + i + ".color", t.color, colorOpts(t.color)))}
+         </div>
+         ${lab("meta", inp("categorizacion." + i + ".meta", t.meta, "≤30 min"))}
+         ${lab("descripción", inp("categorizacion." + i + ".desc", t.desc))}`)).join("") + addBtn("categorizacion", "clas", "agregar categoría"), false);
+
+    // INDICADORES
+    h += section("⑥ Indicadores de gestión", (draft.indicadores || []).length,
+      (draft.indicadores || []).map((x, i) => itemBox(
+        `<div class="flex justify-between mb-1"><span class="text-xs font-bold text-slate-400">#${i + 1}</span>${delBtn("indicadores." + i)}</div>
+         <div class="grid grid-cols-3 gap-2">
+           ${lab("origen", inp("indicadores." + i + ".origen", x.origen, "COMGES"))}
+           ${lab("sigla", inp("indicadores." + i + ".sigla", x.sigla, "1.10"))}
+           ${lab("meta", inp("indicadores." + i + ".meta", x.meta, "≥90%"))}
+         </div>
+         ${lab("nombre", inp("indicadores." + i + ".nombre", x.nombre))}
+         ${lab("objetivo", ta("indicadores." + i + ".objetivo", x.objetivo))}
+         ${lab("fórmula", ta("indicadores." + i + ".formula", x.formula))}
+         <div class="grid grid-cols-2 gap-2">
+           ${lab("periodicidad", inp("indicadores." + i + ".periodicidad", x.periodicidad, "Mensual"))}
+           ${lab("proceso", inp("indicadores." + i + ".proceso", x.proceso, "At. Urgencia"))}
+         </div>`)).join("") + addBtn("indicadores", "ind", "agregar indicador"), false);
+
+    // ACREDITACION
+    h += section("⑦ Acreditación", (draft.acreditacion || []).length,
+      (draft.acreditacion || []).map((a, i) => itemBox(
+        `<div class="flex justify-between mb-1"><span class="text-xs font-bold text-slate-400">#${i + 1}</span>${delBtn("acreditacion." + i)}</div>
+         <div class="grid grid-cols-2 gap-2 items-end">
+           ${lab("característica", inp("acreditacion." + i + ".caracteristica", a.caracteristica, "GCL 2.2"))}
+           <div class="pb-1.5">${chk("acreditacion." + i + ".obligatoria", a.obligatoria, "obligatoria")}</div>
+         </div>
+         ${lab("ámbito", inp("acreditacion." + i + ".ambito", a.ambito, "Gestión Clínica"))}
+         ${lab("denominación", ta("acreditacion." + i + ".denominacion", a.denominacion))}
+         <div class="text-[11px] font-semibold text-slate-500 mt-2">Indicadores (umbral)</div>
+         ${(a.indicadores || []).map((y, j) => `<div class="grid grid-cols-[1fr_auto_auto] gap-1 items-center mb-1">
+            ${inp("acreditacion." + i + ".indicadores." + j + ".nombre", y.nombre, "indicador")}
+            ${inp("acreditacion." + i + ".indicadores." + j + ".umbral", y.umbral, "≥90%")}
+            ${delBtn("acreditacion." + i + ".indicadores." + j, "")}</div>`).join("")}
+         ${addBtn("acreditacion." + i + ".indicadores", "acrInd", "agregar indicador")}
+         <div class="text-[11px] font-semibold text-slate-500 mt-2">Protocolos</div>
+         ${strList("acreditacion." + i + ".documentos", a.documentos, "acrDoc", "protocolo")}`)).join("") + addBtn("acreditacion", "acr", "agregar característica"), false);
+
+    // DOCS SIN INDICADOR
+    h += section("⑧ Protocolos sin indicador", (draft.documentosSinIndicador || []).length,
+      (draft.documentosSinIndicador || []).map((g, i) => itemBox(
+        `<div class="flex justify-between mb-1"><span class="text-xs font-bold text-slate-400">#${i + 1}</span>${delBtn("documentosSinIndicador." + i)}</div>
+         ${lab("grupo", inp("documentosSinIndicador." + i + ".grupo", g.grupo))}
+         <div class="text-[11px] font-semibold text-slate-500 mt-1">Documentos</div>
+         ${strList("documentosSinIndicador." + i + ".docs", g.docs, "dsiDoc", "documento")}`)).join("") + addBtn("documentosSinIndicador", "dsi", "agregar grupo"), false);
+
+    // NORMATIVAS + gesPortal
+    h += section("⑨ Normativa y fuentes", (draft.normativas || []).length,
+      lab("Portal GES — etiqueta del botón en el detalle", inp("gesPortal.label", draft.gesPortal.label, "Ver garantía oficial…")) +
+      lab("Portal GES — URL", inp("gesPortal.url", draft.gesPortal.url, "https://…")) +
+      `<hr class="my-2">` +
+      (draft.normativas || []).map((n, i) => itemBox(
+        `<div class="flex justify-between mb-1"><span class="text-xs font-bold text-slate-400">#${i + 1}</span>${delBtn("normativas." + i)}</div>
+         <div class="grid grid-cols-2 gap-2">
+           ${lab("origen (debe calzar con indicador)", inp("normativas." + i + ".origen", n.origen, "COMGES"))}
+           ${lab("entidad", inp("normativas." + i + ".entidad", n.entidad))}
+         </div>
+         ${lab("título", inp("normativas." + i + ".titulo", n.titulo))}
+         ${lab("descripción", ta("normativas." + i + ".desc", n.desc))}
+         <div class="text-[11px] font-semibold text-slate-500 mt-2">Enlaces</div>
+         ${(n.enlaces || []).map((e, j) => `<div class="grid grid-cols-[1fr_1fr_auto] gap-1 items-center mb-1">
+            ${inp("normativas." + i + ".enlaces." + j + ".label", e.label, "etiqueta")}
+            ${inp("normativas." + i + ".enlaces." + j + ".url", e.url, "https://…")}
+            ${delBtn("normativas." + i + ".enlaces." + j, "")}</div>`).join("")}
+         ${addBtn("normativas." + i + ".enlaces", "normEnl", "agregar enlace")}`)).join("") + addBtn("normativas", "norm", "agregar normativa"), false);
+
+    f.innerHTML = h;
+  }
+
+  /* ---- export ---- */
+  function refOf(d) { return "SVC_" + (d.id || "servicio").toUpperCase().replace(/[^A-Z0-9_]/g, "_"); }
+  function genJS() {
+    const d = normalize(clone(draft));
+    const ref = refOf(d);
+    return `/* Servicio generado con el Constructor · Servicios Clínicos HDS */\n` +
+      `(function(){ "use strict";\n` +
+      `  var SVC = ${JSON.stringify(d, null, 2)};\n` +
+      `  window.${ref} = SVC;\n` +
+      `  window.SVC_REGISTRY = window.SVC_REGISTRY || [];\n` +
+      `  if(!window.SVC_REGISTRY.some(function(s){return s.id===SVC.id;})){\n` +
+      `    window.SVC_REGISTRY.push({id:SVC.id, sigla:SVC.sigla, nombre:SVC.nombre, ref:${JSON.stringify(ref)}, estado:SVC.estado});\n` +
+      `  }\n})();\n`;
+  }
+  function download(name, text) {
+    const b = new Blob([text], { type: "text/javascript" });
+    const u = URL.createObjectURL(b);
+    const a = document.createElement("a"); a.href = u; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 1500);
+  }
+  function msg(t, kind) { $("#cb-msg").innerHTML = `<span class="${kind === "err" ? "text-rose-600" : kind === "ok" ? "text-emerald-600" : "text-slate-500"} font-medium">${esc(t)}</span>`; }
+  function autosave() { try { localStorage.setItem(LS_KEY, JSON.stringify(draft)); } catch (e) {} }
+
+  /* ---- live test ---- */
+  function testLive() {
+    const d = normalize(clone(draft));
+    if (!d.id) { msg("Falta el «id» del servicio (ej: pabellon).", "err"); return; }
+    const ref = refOf(d);
+    window[ref] = d;
+    window.SVC_REGISTRY = window.SVC_REGISTRY || [];
+    const ex = window.SVC_REGISTRY.find((s) => s.id === d.id);
+    if (ex) { ex.sigla = d.sigla; ex.nombre = d.nombre; ex.estado = d.estado; ex.ref = ref; }
+    else window.SVC_REGISTRY.push({ id: d.id, sigla: d.sigla, nombre: d.nombre, ref: ref, estado: d.estado });
+    if (window.SVC_SHELL) window.SVC_SHELL.open(ref);
+    const cockpit = document.querySelector('button[data-view="cockpit"]'); if (cockpit) cockpit.click();
+    msg("Servicio «" + d.sigla + "» cargado en vivo. Cámbialo desde el selector ↑.", "ok");
+  }
+
+  /* ---- toolbar ---- */
+  function initBuilder() {
+    const f = $("#cb-form");
+    // populate plantillas
+    const load = $("#cb-load");
+    (window.SVC_REGISTRY || []).forEach((s) => { const o = document.createElement("option"); o.value = s.ref; o.textContent = "Cargar: " + s.sigla + " · " + s.nombre; load.appendChild(o); });
+
+    const onEdit = (e) => {
+      const t = e.target; const p = t.getAttribute && t.getAttribute("data-path"); if (!p) return;
+      let v; if (t.type === "checkbox") v = t.checked; else if (t.type === "number") v = t.value === "" ? "" : Number(t.value); else v = t.value;
+      setP(p, v); autosave();
+    };
+    f.addEventListener("input", onEdit);
+    f.addEventListener("change", onEdit);
+    f.addEventListener("click", (e) => {
+      const a = e.target.closest("[data-add]"); if (a) { addP(a.getAttribute("data-add"), a.getAttribute("data-addtype")); render(); autosave(); return; }
+      const d = e.target.closest("[data-del]"); if (d) { delP(d.getAttribute("data-del")); render(); autosave(); return; }
+    });
+
+    $("#cb-new").addEventListener("click", () => { if (confirm("¿Vaciar el formulario y empezar un servicio nuevo?")) { draft = emptyDraft(); render(); autosave(); msg("Formulario vacío.", ""); } });
+    load.addEventListener("change", () => {
+      const ref = load.value; if (!ref || !window[ref]) { return; }
+      draft = normalize(clone(window[ref])); render(); autosave(); msg("Plantilla cargada: " + ref + ". Edítala y cámbiale el id/sigla.", "ok"); load.value = "";
+    });
+    $("#cb-import").addEventListener("change", (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const r = new FileReader();
+      r.onload = () => { try { draft = normalize(JSON.parse(r.result)); render(); autosave(); msg("JSON importado.", "ok"); } catch (err) { msg("JSON inválido: " + err.message, "err"); } };
+      r.readAsText(file); e.target.value = "";
+    });
+    $("#cb-test").addEventListener("click", testLive);
+    $("#cb-dljs").addEventListener("click", () => {
+      if (!draft.id) { msg("Falta el «id» para nombrar el archivo.", "err"); return; }
+      download(draft.id + ".js", genJS());
+      msg("Descargado " + draft.id + ".js — colócalo en data/servicios/ y agrega su <script src> (o impórtalo aquí).", "ok");
+    });
+    $("#cb-copy").addEventListener("click", async () => {
+      const txt = JSON.stringify(normalize(clone(draft)), null, 2);
+      try { await navigator.clipboard.writeText(txt); msg("JSON copiado al portapapeles.", "ok"); }
+      catch (e) { const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); msg("JSON copiado.", "ok"); } catch (e2) { msg("No se pudo copiar; usa Descargar.", "err"); } ta.remove(); }
+    });
+
+    render();
+  }
+  initBuilder();
+})();
+</script>
+<script src="hub-home.js"></script>
+</body>
+</html>
