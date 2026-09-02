@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script src="pm_config.js"></script>
+<script src="pm_gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flujos HDS · Diseñador de procesos</title>
+<style>
+:root{
+  --azul:#073763; --azul2:#0b4f8a; --azul3:#e8f0f8; --gris:#5f6b7a; --linea:#d5dbe3; --fondo:#f4f6f9;
+  --ok:#2e7d32; --warn:#c77700; --crit:#b3261e; --info:#1f6fb2;
+  --rojo:#c62828; --verde:#2e7d32;
+  --font:Verdana,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:var(--font);font-size:12px;color:#1e2430;background:var(--fondo)}
+button,input,select,textarea{font-family:inherit;font-size:12px}
+button{cursor:pointer;border:1px solid var(--linea);background:#fff;border-radius:6px;padding:5px 9px;color:#1e2430}
+button:hover{background:var(--azul3)}
+button.primary{background:var(--azul);color:#fff;border-color:var(--azul)}
+button.primary:hover{background:var(--azul2)}
+button.danger{color:var(--crit);border-color:#e5b4b0}
+button.small{padding:2px 6px;font-size:11px}
+button:disabled{opacity:.45;cursor:default}
+input[type=text],input[type=number],select,textarea{width:100%;border:1px solid var(--linea);border-radius:6px;padding:5px 7px;background:#fff}
+textarea{resize:vertical;min-height:52px}
+label.f{display:block;margin:7px 0 3px;color:var(--gris);font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+
+#app{display:grid;grid-template-rows:48px 1fr;grid-template-columns:230px 1fr 360px;height:100%;grid-template-areas:"top top top" "left canvas right"}
+#top{grid-area:top;background:var(--azul);color:#fff;display:flex;align-items:center;gap:10px;padding:0 12px}
+#top .brand{font-weight:bold;letter-spacing:.3px;white-space:nowrap}
+#top .brand small{font-weight:normal;opacity:.75;margin-left:6px}
+#top input.title{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:6px;padding:5px 8px;min-width:280px;flex:1;max-width:520px}
+#top .grp{display:flex;gap:4px;align-items:center}
+#top button{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.25)}
+#top button:hover{background:rgba(255,255,255,.22)}
+#top .score{background:#fff;color:var(--azul);border-radius:14px;padding:3px 10px;font-weight:bold;white-space:nowrap}
+
+#left{grid-area:left;background:#fff;border-right:1px solid var(--linea);display:flex;flex-direction:column;overflow:hidden}
+#right{grid-area:right;background:#fff;border-left:1px solid var(--linea);display:flex;flex-direction:column;overflow:hidden}
+.sec{padding:10px 12px;border-bottom:1px solid var(--linea)}
+.sec h3{margin:0 0 8px;font-size:11px;color:var(--gris);text-transform:uppercase;letter-spacing:.5px}
+.palette{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pal{border:1px solid var(--linea);border-radius:8px;padding:7px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:grab;user-select:none;background:#fff}
+.pal:hover{background:var(--azul3);border-color:var(--azul2)}
+.pal .ic{font-size:18px;line-height:1}
+.pal .nm{font-size:10px;color:var(--gris);text-align:center}
+#flows{flex:1;overflow:auto}
+.flowitem{padding:8px 10px;border-radius:6px;cursor:pointer;margin-bottom:4px;border:1px solid transparent}
+.flowitem:hover{background:var(--azul3)}
+.flowitem.active{background:var(--azul3);border-color:var(--azul2)}
+.flowitem .n{font-weight:bold;font-size:12px}
+.flowitem .m{color:var(--gris);font-size:10px;margin-top:2px}
+
+#canvasWrap{grid-area:canvas;position:relative;overflow:hidden;background:#eef1f5}
+#svg{width:100%;height:100%;display:block;cursor:default}
+#svg.pan{cursor:grab}
+#svg.connect{cursor:crosshair}
+#hint{position:absolute;left:12px;bottom:10px;background:rgba(7,55,99,.85);color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;pointer-events:none;opacity:0;transition:opacity .2s}
+#hint.show{opacity:1}
+#zoomctl{position:absolute;right:12px;bottom:10px;display:flex;gap:4px}
+#legend{position:absolute;left:12px;top:10px;background:rgba(255,255,255,.95);border:1px solid var(--linea);border-radius:8px;padding:8px 10px;font-size:11px;display:none;max-width:280px}
+#legend.show{display:block}
+#legend .row{display:flex;align-items:center;gap:8px;margin:3px 0}
+#legend svg{flex:none}
+
+.tabs{display:flex;border-bottom:1px solid var(--linea)}
+.tab{flex:1;text-align:center;padding:9px 4px;cursor:pointer;color:var(--gris);border-bottom:2px solid transparent;font-size:11px}
+.tab.active{color:var(--azul);border-bottom-color:var(--azul);font-weight:bold}
+.tabpane{display:none;flex:1;overflow:auto;padding:10px 12px}
+.tabpane.active{display:block}
+.card{border:1px solid var(--linea);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:#fff}
+.card.click{cursor:pointer}
+.card.click:hover{border-color:var(--azul2);background:var(--azul3)}
+.badge{display:inline-block;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:bold;color:#fff;vertical-align:middle}
+.b-C{background:var(--crit)} .b-A{background:#d9822b} .b-M{background:#c9a400} .b-B{background:#6b8e23} .b-I{background:var(--info)}
+.muted{color:var(--gris)}
+table.t{width:100%;border-collapse:collapse;font-size:11px}
+table.t th,table.t td{border:1px solid var(--linea);padding:4px 5px;text-align:left;vertical-align:top}
+table.t th{background:var(--azul3);color:var(--azul)}
+table.t tr.click{cursor:pointer}
+table.t tr.click:hover td{background:#f5f9ff}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.chk{display:flex;gap:6px;align-items:center;margin:4px 0}
+.chk input{width:auto}
+.kv{display:flex;justify-content:space-between;gap:8px;margin:3px 0}
+.kv b{color:var(--azul)}
+.lanerow{display:flex;gap:4px;align-items:center;margin-bottom:4px}
+.lanerow input[type=text]{flex:1}
+.lanerow input[type=color]{width:26px;height:24px;padding:0;border:1px solid var(--linea);border-radius:4px;background:#fff}
+.lanerow input[type=number]{width:58px}
+#toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);background:#1e2430;color:#fff;padding:8px 14px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:99}
+#toast.show{opacity:1}
+.scorebar{height:8px;background:#e5e9ef;border-radius:4px;overflow:hidden;margin:6px 0 10px}
+.scorebar i{display:block;height:100%;background:var(--ok)}
+.pres #left,.pres #right{display:none}
+.pres #app{grid-template-columns:0 1fr 0}
+kbd{background:#eee;border:1px solid #ccc;border-radius:3px;padding:0 4px;font-size:10px}
+.help p{margin:4px 0}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="brand">FLUJOS HDS <small>diseñador de procesos</small></div>
+    <input class="title" id="flowTitle" type="text" placeholder="Nombre del flujo">
+    <div class="grp">
+      <button id="btnUndo" title="Deshacer (⌘Z)">↶</button>
+      <button id="btnRedo" title="Rehacer (⇧⌘Z)">↷</button>
+    </div>
+    <div class="grp">
+      <button id="btnConnect" title="Modo conectar (C): clic origen, clic destino">⟶ Conectar</button>
+      <button id="btnLegend" title="Mostrar leyenda">Leyenda</button>
+      <button id="btnPres" title="Modo presentación (P)">Presentar</button>
+    </div>
+    <div class="score" id="score" title="Madurez del flujo según el validador">—</div>
+  </div>
+
+  <div id="left">
+    <div class="sec">
+      <h3>Elementos <span class="muted" style="text-transform:none">(arrastra o clic)</span></h3>
+      <div class="palette" id="palette"></div>
+    </div>
+    <div class="sec" style="display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0">Flujos</h3>
+      <div><button class="small" id="btnNewFlow">+ Nuevo</button></div>
+    </div>
+    <div id="flows" class="sec" style="border:0"></div>
+    <div class="sec help" style="font-size:10px;color:var(--gris)">
+      <p><kbd>Supr</kbd> borrar · <kbd>⌘D</kbd> duplicar · <kbd>C</kbd> conectar · <kbd>Esc</kbd> cancelar</p>
+      <p>Rueda: desplazar · <kbd>⌘</kbd>+rueda: zoom · Espacio+arrastrar: mover lienzo</p>
+      <p>Arrastra el punto azul de un nodo seleccionado hacia otro para conectarlos.</p>
+    </div>
+  </div>
+
+  <div id="canvasWrap">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3b4656"/></marker>
+        <marker id="arrExc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c62828"/></marker>
+        <marker id="arrInfo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f6fb2"/></marker>
+        <marker id="arrSel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff8f00"/></marker>
+      </defs>
+      <g id="viewport"><g id="gLanes"></g><g id="gEdges"></g><g id="gNodes"></g><g id="gTemp"></g></g>
+    </svg>
+    <div id="legend"></div>
+    <div id="hint"></div>
+    <div id="zoomctl"><button id="zIn">+</button><button id="zOut">−</button><button id="zFit">Ajustar</button></div>
+  </div>
+
+  <div id="right">
+    <div class="tabs">
+      <div class="tab active" data-tab="props">Propiedades</div>
+      <div class="tab" data-tab="valid">Validación</div>
+      <div class="tab" data-tab="steps">Pasos</div>
+      <div class="tab" data-tab="hall">Hallazgos</div>
+      <div class="tab" data-tab="exp">Exportar</div>
+    </div>
+    <div class="tabpane active" id="tab-props"></div>
+    <div class="tabpane" id="tab-valid"></div>
+    <div class="tabpane" id="tab-steps"></div>
+    <div class="tabpane" id="tab-hall"></div>
+    <div class="tabpane" id="tab-exp"></div>
+  </div>
+</div>
+<div id="toast"></div>
+<input type="file" id="fileIn" accept=".json" style="display:none">
+
+<script>
+/* =====================================================================
+   FLUJOS HDS · diseñador de procesos por carriles
+   Un solo archivo. Datos en localStorage (clave flujos_hds_v1).
+   ===================================================================== */
+'use strict';
+const LS_KEY='flujos_hds_v1';
+const NODE_W=150, NODE_H=56, LANE_HEAD=140, COL_W=190;
+
+const TYPES={
+  inicio:   {nm:'Inicio',     ic:'●', desc:'Evento de inicio'},
+  fin:      {nm:'Fin',        ic:'◉', desc:'Evento de término'},
+  actividad:{nm:'Actividad',  ic:'▭', desc:'Tarea ejecutada por un rol'},
+  decision: {nm:'Decisión',   ic:'◇', desc:'Bifurcación con ramas etiquetadas'},
+  documento:{nm:'Documento',  ic:'🗎', desc:'Registro o listado'},
+  sistema:  {nm:'Sistema',    ic:'🗄', desc:'Registro en un sistema de información'},
+  contacto: {nm:'Contacto',   ic:'☏', desc:'Contacto con el paciente'},
+  comite:   {nm:'Comité',     ic:'👥', desc:'Instancia colegiada'},
+  subproceso:{nm:'Subproceso',ic:'⧉', desc:'Procedimiento hijo referenciado'},
+  espera:   {nm:'Espera',     ic:'⏱', desc:'Tiempo de espera o plazo'},
+};
+const SEVN={C:'Crítico',A:'Alto',M:'Medio',B:'Bajo',I:'Info'};
+
+/* ---------------- estado ---------------- */
+let state={flows:[],activeId:null};
+let sel={nodes:new Set(),edge:null};
+let view={x:20,y:20,z:0.8};
+let undoStack=[],redoStack=[];
+let mode='select'; // select | connect
+let connectFrom=null;
+let drag=null; // {type:'node'|'pan'|'link'|'palette', ...}
+let legendOn=false;
+let spaceDown=false;
+
+const $=s=>document.querySelector(s);
+const uid=p=>(p||'n')+Math.random().toString(36).slice(2,8);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
+function hint(m){const h=$('#hint');if(!m){h.classList.remove('show');return;}h.textContent=m;h.classList.add('show');}
+const cur=()=>state.flows.find(f=>f.id===state.activeId);
+const nodeById=(f,id)=>f.nodes.find(n=>n.id===id);
+
+/* ---------------- geometría ---------------- */
+function laneTops(f){let y=0;return f.lanes.map(l=>{const t=y;y+=l.h||120;return t;});}
+function laneAt(f,y){const tops=laneTops(f);for(let i=f.lanes.length-1;i>=0;i--){if(y>=tops[i])return f.lanes[i].id;}return f.lanes[0]?.id;}
+function laneIdx(f,id){return f.lanes.findIndex(l=>l.id===id);}
+function canvasW(f){return Math.max(1200,...f.nodes.map(n=>n.x+NODE_W))+260;}
+function cx(n){return n.x+NODE_W/2}
+function cy(n){return n.y+NODE_H/2}
+function snap(v){return Math.round(v/10)*10}
+
+/* ---------------- persistencia ---------------- */
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(state));}catch(e){console.warn(e)}}
+function load(){try{const s=localStorage.getItem(LS_KEY);if(s){state=JSON.parse(s);return true;}}catch(e){}return false;}
+function pushUndo(){const f=cur();if(!f)return;undoStack.push(JSON.stringify(f));if(undoStack.length>60)undoStack.shift();redoStack=[];updUndo();}
+function undo(){const f=cur();if(!undoStack.length)return;redoStack.push(JSON.stringify(f));const s=JSON.parse(undoStack.pop());Object.assign(f,s);sel.nodes.clear();sel.edge=null;renderAll();save();}
+function redo(){const f=cur();if(!redoStack.length)return;undoStack.push(JSON.stringify(f));const s=JSON.parse(redoStack.pop());Object.assign(f,s);sel.nodes.clear();sel.edge=null;renderAll();save();}
+function updUndo(){$('#btnUndo').disabled=!undoStack.length;$('#btnRedo').disabled=!redoStack.length;}
+function commit(){const f=cur();f.mod=new Date().toISOString();save();renderAll();}
+
+/* ---------------- fábrica ---------------- */
+function newFlow(nombre){
+  return {id:uid('f'),nombre:nombre||'Nuevo flujo',version:'0.1',descripcion:'',dueno:'',alcance:'',
+    creado:new Date().toISOString(),mod:new Date().toISOString(),
+    lanes:[{id:uid('l'),nombre:'Paciente',color:'#e8f0f8',h:120},{id:uid('l'),nombre:'Rol 1',color:'#ffffff',h:120},{id:uid('l'),nombre:'Rol 2',color:'#f6f8fb',h:120}],
+    nodes:[],edges:[],hallazgos:[]};
+}
+function newNode(type,x,y,laneId,label){
+  return {id:uid('n'),type,label:label||TYPES[type].nm,lane:laneId,x:snap(x),y:snap(y),resp:'',sistema:'',sla:'',entradas:'',salidas:'',kpi:'',notas:'',checklist:[]};
+}
+
+/* =====================================================================
+   SEMILLAS · Proceso Quirúrgico AS-IS y TO-BE
+   ===================================================================== */
+function seedFlows(){
+  return [seedToBe(),seedAsIs()];
+}
+function mk(f,lanes){
+  const L={};lanes.forEach(([k,nombre,color,h])=>{const id='L_'+k;L[k]=id;f.lanes.push({id,nombre,color,h:h||120});});
+  const tops=laneTops(f);
+  const N=(id,lane,col,row,type,label,extra={})=>{
+    const li=laneIdx(f,L[lane]);const y=tops[li]+22+row*70;const x=LANE_HEAD+30+col*COL_W;
+    const n=Object.assign(newNode(type,x,y,L[lane],label),extra);n.id=id;f.nodes.push(n);return n;};
+  const E=(from,to,label='',kind='seq')=>{f.edges.push({id:uid('e'),from,to,label,kind});};
+  return {L,N,E};
+}
+
+function seedToBe(){
+  const f=newFlow('Proceso Quirúrgico · Propuesta por carriles (TO-BE)');
+  f.id='f_qx_tobe';f.version='1.0';f.dueno='Jefe Departamento Quirúrgico (dueño del proceso extremo a extremo)';
+  f.alcance='Cirugía electiva y de urgencia del Hospital Del Salvador. Desde la indicación quirúrgica hasta el cierre administrativo del caso.';
+  f.descripcion='Rediseño del flujo quirúrgico con carriles por rol, decisiones explícitas, lazos de excepción cerrados, verificación de recursos antes de la tabla, suspensión modelada y cierre SIGTE/SIGGES.';
+  f.lanes=[];
+  const {N,E}=mk(f,[
+    ['pac','Paciente','#e8f0f8',200],
+    ['cir','Cirujano de especialidad','#ffffff',160],
+    ['adm','Administrativo UPPQ','#f6f8fb',160],
+    ['mj','Médico Jefe UPPQ','#ffffff',160],
+    ['ane','Anestesiología','#f6f8fb',160],
+    ['enf','Enfermera coordinadora','#ffffff',120],
+    ['tab','Comité de tabla','#f6f8fb',160],
+    ['apo','Unidades de apoyo','#ffffff',160],
+    ['adi','Admisión','#f6f8fb',120],
+    ['pab','Pabellón','#ffffff',160],
+    ['rec','Recuperación y destino','#f6f8fb',200],
+  ]);
+  // Paciente
+  N('p1','pac',0,0,'inicio','Consulta cirujano especialista',{resp:'Paciente',sla:'—',notas:'Entrada electiva.'});
+  N('p2','pac',0,1,'inicio','Ingreso por UEH / interconsulta hospitalizado',{resp:'Paciente',notas:'Entrada de urgencia o paciente hospitalizado con indicación quirúrgica.'});
+  N('p3','pac',9,0,'espera','Espera priorizada con acompañamiento',{resp:'Administrativo UPPQ',sla:'Contacto cada 60 días',sistema:'SIGTE',notas:'El paciente puede informar cambios por canal de entrada (teléfono / correo).'});
+  N('p4','pac',20,0,'espera','Recibe fecha e indicaciones preoperatorias',{resp:'Paciente',sla:'≥ 7 días antes'});
+  N('p5','pac',27,0,'fin','Alta a domicilio',{notas:'Cirugía mayor ambulatoria o alta post hospitalización.'});
+  N('p6','pac',27,1,'fin','Alta a sala / UPC (continúa hospitalizado)');
+  N('p7','pac',27,2,'fin','Otros destinos: traslado, hospitalización domiciliaria, fallecimiento');
+  // Cirujano
+  N('c1','cir',1,0,'actividad','Indicación quirúrgica y consentimiento',{resp:'Cirujano',sla:'Mismo día de la consulta',sistema:'Ficha clínica electrónica',checklist:['CAPRINI','Exámenes mínimos','Criterios de inclusión/exclusión','Protocolo de preparación QX','Pases requeridos','Consentimiento informado quirúrgico']});
+  N('c2','cir',2,0,'documento','SIQ',{resp:'Cirujano',sistema:'Ficha clínica electrónica',notas:'Solicitud de Intervención Quirúrgica. Su fecha es la fecha de ingreso a lista de espera.'});
+  N('c3','cir',3,1,'actividad','Corrige SIQ devuelta',{resp:'Cirujano',sla:'5 días hábiles'});
+  N('c4','cir',7,1,'actividad','Reevaluación por especialista',{resp:'Cirujano',sla:'15 días',notas:'Vuelve a emitir o cierra la SIQ.'});
+  N('c5','cir',1,1,'actividad','Interconsulta quirúrgica y SIQ de urgencia',{resp:'Cirujano de turno',sla:'≤ 24 h',sistema:'Ficha clínica electrónica',notas:'Categoriza urgencia: inmediata, diferida, hospitalizado.'});
+  N('c6','cir',24,1,'actividad','Control postoperatorio y biopsia',{resp:'Cirujano',sla:'7 a 30 días',notas:'Resultado de Anatomía Patológica hacia comité oncológico cuando corresponda.'});
+  // Administrativo
+  N('a1','adm',3,0,'actividad','Valida documentación y depura duplicados',{resp:'Administrativo UPPQ',sla:'2 días hábiles',sistema:'Planilla UPPQ / Ficha',notas:'Una sola SIQ por paciente y diagnóstico.'});
+  N('a2','adm',4,0,'decision','¿SIQ completa y única?',{resp:'Administrativo UPPQ'});
+  N('a3','adm',5,0,'sistema','Registro SIGTE con fecha de la SIQ',{resp:'Administrativo UPPQ',sla:'Mismo día',sistema:'SIGTE',notas:'La fecha de ingreso a lista de espera es la fecha de la SIQ, no la de registro.'});
+  N('a4','adm',8,0,'contacto','Contacto de control de criterios',{resp:'Administrativo UPPQ',sla:'3 intentos en 5 días',sistema:'SIGTE',notas:'Registra resultado de cada intento.'});
+  N('a5','adm',9,0,'decision','¿Ubicable y acepta?',{resp:'Administrativo UPPQ'});
+  N('a6','adm',9,1,'fin','Egreso de lista de espera con causal',{resp:'Administrativo UPPQ',sistema:'SIGTE',notas:'Causales: no ubicable, rechaza, fallecido, operado en otro centro, no quirúrgico.'});
+  N('a7','adm',18,0,'contacto','Contacto de confirmación e indicaciones',{resp:'Administrativo UPPQ',sla:'≥ 7 días antes de la fecha',sistema:'SIGTE'});
+  N('a8','adm',19,0,'decision','¿Confirma la fecha?',{resp:'Administrativo UPPQ'});
+  // Médico Jefe
+  N('m1','mj',6,0,'actividad','Verifica criterios y corte GES',{resp:'Médico Jefe UPPQ',sla:'Semanal',sistema:'SIGTE / SIGGES',entradas:'Listado SIQ por especialidad; listado GO vencidas y por vencer a 30 y 60 días',notas:'Primera priorización.'});
+  N('m2','mj',7,0,'decision','¿Cumple criterios de inclusión?',{resp:'Médico Jefe UPPQ'});
+  N('m3','mj',7,1,'comite','Comité Quirúrgico',{resp:'Médico Jefe UPPQ + Jefe de especialidad',sla:'Quincenal',notas:'Resuelve casos que no cumplen criterios: reevaluar o cerrar.'});
+  N('m4','mj',13,0,'documento','Listado priorizado con SIQ única',{resp:'Médico Jefe UPPQ',sla:'Semanal',sistema:'SIGTE',notas:'Segunda priorización. Criterios: GES por vencer, oncológico, tiempo de espera, prioridad clínica, judicializado.'});
+  // Anestesiología
+  N('n1','ane',10,0,'actividad','Evaluación preanestésica',{resp:'Anestesiólogo',sla:'≤ 30 días desde aceptación',sistema:'Ficha clínica electrónica',checklist:['Clasificación ASA','Consentimiento de anestesia','Pases pendientes']});
+  N('n2','ane',11,0,'decision','¿Apto para cirugía?',{resp:'Anestesiólogo'});
+  N('n3','ane',11,1,'actividad','Optimización y pases',{resp:'Anestesiólogo + especialidad',sla:'≤ 45 días',notas:'Cardiología, broncopulmonar, nutrición, control metabólico.'});
+  // Enfermera coordinadora
+  N('e1','enf',12,0,'actividad','Preparación preoperatoria y educación',{resp:'Enfermera coordinadora',sla:'Antes del listado priorizado',checklist:['Exámenes vigentes','Pases completos','Criterios de ambulatorio / acompañante','Educación al paciente']});
+  N('e2','enf',21,0,'actividad','Verifica preparación el día previo',{resp:'Enfermera coordinadora',sla:'Día previo',checklist:['Ayuno','Profilaxis','Sitio quirúrgico marcado','Cama de destino confirmada']});
+  // Comité de tabla
+  N('t1','tab',14,0,'comite','Reunión de tabla semanal y diaria',{resp:'Comité de tabla',sla:'Semanal (cierre jueves) y diaria (13:00)',notas:'Integra electivos priorizados y urgencias. Regla de desplazamiento: la urgencia toma cupo reservado; si desplaza electiva, ésta se reprograma en la semana siguiente con prioridad.'});
+  N('t2','tab',16,0,'decision','¿Recursos confirmados?',{resp:'Comité de tabla'});
+  N('t3','tab',17,0,'documento','Tabla quirúrgica definitiva',{resp:'Comité de tabla',sla:'Viernes (semanal) / 14:00 (diaria)',sistema:'Tabla en HIS / planilla de pabellón'});
+  N('t4','tab',19,1,'actividad','Activa lista de reemplazo',{resp:'Comité de tabla',sla:'Mismo día',notas:'Pacientes preparados por especialidad que pueden tomar el cupo.'});
+  N('t5','tab',23,1,'actividad','Registra causa de suspensión y reprograma',{resp:'Comité de tabla',sla:'Mismo día',sistema:'Registro de suspensiones',notas:'Causa paciente / causa hospital con desglose. Alimenta indicador de suspensión.'});
+  // Unidades de apoyo
+  N('u1','apo',15,0,'actividad','Verificación de recursos',{resp:'Esterilización, Banco de Sangre, Consignaciones, Equipos Médicos, Farmacia, Gestión de Camas',sla:'Antes del cierre de tabla',checklist:['Hora de pabellón y anestesiólogo','Cama de destino (sala / UPC)','Hemoderivados reservados','Set de instrumental esterilizado','Implante / consignación disponible','Equipo médico operativo','Insumos críticos']});
+  N('u2','apo',16,1,'actividad','Gestiona recurso faltante',{resp:'Unidad responsable del recurso',sla:'≤ 48 h',notas:'Si no se resuelve, el caso vuelve a tabla con nueva fecha.'});
+  // Admisión
+  N('d1','adi',20,0,'actividad','Ingreso según modalidad',{resp:'Admisión',sla:'Día previo o mismo día',sistema:'HIS',checklist:['Verificación de identidad','Consentimientos vigentes','Modalidad: hospitalizado previo / ingreso mismo día / ambulatorio']});
+  // Pabellón
+  N('b1','pab',22,0,'subproceso','Acto quirúrgico',{resp:'Equipo quirúrgico',sla:'Según tabla',sistema:'Protocolo operatorio en HIS',notas:'Procedimiento hijo: recepción, sign in, time out, cirugía, conteo, sign out, muestras a Anatomía Patológica, traslado a recuperación.',checklist:['Sign in','Time out','Sign out','Conteo de gasas e instrumental','Protocolo operatorio']});
+  N('b2','pab',23,0,'decision','¿Cirugía realizada?',{resp:'Enfermera coordinadora pabellón',notas:'No = suspendida el mismo día.'});
+  // Recuperación
+  N('r1','rec',24,0,'actividad','Recuperación y criterio de alta',{resp:'Unidad de Recuperación',sla:'Aldrete ≥ 9',checklist:['Manejo del dolor','Aldrete','Indicaciones de alta']});
+  N('r2','rec',25,0,'decision','Destino de salida',{resp:'Anestesiólogo + cirujano'});
+  N('r3','rec',26,0,'sistema','Cierre: egreso SIGTE, cumplimiento SIGGES, estadística',{resp:'Administrativo UPPQ',sla:'≤ 5 días desde la cirugía',sistema:'SIGTE / SIGGES / REM'});
+  // Edges
+  E('p1','c1');E('c1','c2');E('c2','a1');E('a1','a2');E('a2','a3','Sí');E('a2','c3','No: SIQ devuelta','exc');E('c3','c2','','exc');
+  E('a3','m1');E('m1','m2');E('m2','a4','Sí');E('m2','m3','No','exc');E('m3','c4','Reevaluar','exc');E('c4','c2','Nueva SIQ','exc');E('m3','a6','No quirúrgico','exc');
+  E('a4','a5');E('a5','n1','Sí');E('a5','a6','No ubicable / rechaza','exc');E('a5','p3','Acompañamiento','info');
+  E('n1','n2');E('n2','e1','Apto');E('n2','n3','No apto','exc');E('n3','n1','Reevaluar','exc');
+  E('e1','m4');E('m4','t1');
+  E('p2','c5');E('c5','t1','Urgencia: cupo reservado / desplaza electiva');f.edges[f.edges.length-1].via=LANE_HEAD+30+12*COL_W+NODE_W+20;
+  E('t1','u1');E('u1','t2');E('t2','t3','Sí');E('t2','u2','No','exc');E('u2','t1','Nueva fecha','exc');
+  E('t3','a7');E('a7','a8');E('a8','d1','Sí');E('a8','t4','No','exc');E('t4','t3','Reemplazo','exc');E('a8','p4','Indicaciones','info');
+  E('d1','e2');E('e2','b1');E('b1','b2');E('b2','r1','Sí');E('b2','t5','Suspendida','exc');E('t5','t1','Reprogramar','exc');
+  E('r1','r2');E('r2','r3','Domicilio');E('r2','p6','Sala / UPC');E('r2','p7','Otros');E('r3','c6');E('c6','p5');E('r3','p5','','info');
+  return f;
+}
+
+function seedAsIs(){
+  const f=newFlow('Proceso Quirúrgico · Diagrama original (AS-IS)');
+  f.id='f_qx_asis';f.version='0.9';f.dueno='';
+  f.alcance='Reconstrucción fiel del diagrama recibido: organigrama + dos entradas + cuatro subprocesos + dos salidas. Sirve para correr el validador y ver los vacíos.';
+  f.descripcion='Los elementos están ubicados como en la lámina original. Solo existen los dos conectores rojos del Médico Jefe UPPQ; el resto del orden es espacial.';
+  f.lanes=[];
+  const {N,E}=mk(f,[
+    ['ent','Entradas','#e8f0f8',200],
+    ['pre','Subproceso prequirúrgico','#ffffff',300],
+    ['tab','Subproceso tabla quirúrgica','#f6f8fb',160],
+    ['qx','Subproceso quirúrgico','#ffffff',120],
+    ['pos','Subproceso postquirúrgico','#f6f8fb',120],
+    ['sal','Salidas','#e8f0f8',160],
+  ]);
+  N('i1','ent',0,0,'inicio','Consulta cirujano especialista');
+  N('i2','ent',0,1,'inicio','UEH');
+  N('i3','ent',0,2,'inicio','Hospitalizado');
+  N('i4','ent',1,0,'actividad','Entrada · Paciente');
+  N('i5','ent',1,1,'actividad','Entrada · Paciente (urgencia)');
+  N('q1','pre',0,0,'actividad','Cirujano da la indicación de cirugía',{checklist:['CAPRINI','Consentimiento informado','Exámenes mínimos','Encuesta','Criterios de inclusión y exclusión','Protocolo de preparación QX','Evaluación preanestésica y pases']});
+  N('q2','pre',1,0,'documento','SIQ');
+  N('q3','pre',2,0,'actividad','Administrativo UPPQ valida documentación y datos en la SIQ');
+  N('q4','pre',3,0,'documento','Listado de SIQ por especialidad quirúrgica');
+  N('q5','pre',1,1,'documento','GES: corte de garantías vencidas y por vencer');
+  N('q6','pre',2,1,'documento','Listado de GO vencidas por especialidad');
+  N('q7','pre',4,0,'actividad','Médico Jefe UPPQ verifica criterios de inclusión y exclusión',{notas:'Primera priorización'});
+  N('q8','pre',3,2,'comite','Comité Quirúrgico');
+  N('q9','pre',4,2,'actividad','Reevaluación por especialista');
+  N('q10','pre',5,0,'actividad','UPPQ confirma pacientes operables y programables');
+  N('q11','pre',6,0,'contacto','Contacto de control de criterios QX');
+  N('q12','pre',5,1,'contacto','Contacto de acompañamiento');
+  N('q13','pre',6,1,'actividad','Segunda priorización');
+  N('q14','pre',5,2,'sistema','SIGTE');
+  N('q15','pre',7,0,'documento','Listado de paciente con SIQ única por especialidad y criterios de prioridad');
+  N('t1','tab',6,0,'comite','Comité de Tabla Quirúrgica');
+  N('t2','tab',7,0,'comite','Reunión diaria de Tabla Quirúrgica');
+  N('t3','tab',8,0,'contacto','Contacto de confirmación e indicaciones');
+  N('t4','tab',9,0,'documento','Programación de Tabla Semanal y Diaria');
+  N('t5','tab',9,1,'actividad','Admisión');
+  N('x1','qx',10,0,'actividad','Cirugía electiva');
+  N('o1','pos',11,0,'actividad','Unidad de Recuperación');
+  N('o2','pos',12,0,'actividad','Estabilización y evaluación del destino de salida');
+  N('s1','sal',13,0,'actividad','Paciente · Salida');
+  N('s2','sal',14,0,'fin','Domicilio');
+  N('s3','sal',14,1,'fin','Hospitalización');
+  E('q7','q8','','exc');E('q7','q9','','exc');
+  f.hallazgos=HALLAZGOS_ASIS.map(h=>({id:h[0],ambito:h[1],sev:h[2],texto:h[3],consecuencia:h[4],accion:h[5],estado:'Abierto',node:h[6]||''}));
+  return f;
+}
+const HALLAZGOS_ASIS=[
+  ['H01','Sintaxis','C','El proceso no tiene conectores entre pasos, salvo dos líneas rojas que salen del Médico Jefe UPPQ.','Dos lectores pueden leer dos secuencias distintas. No es auditable ni entrenable.','Conectar cada actividad con flecha de secuencia y numerar los pasos.','q7'],
+  ['H02','Sintaxis','C','No existe ningún punto de decisión. Hay al menos seis bifurcaciones reales sin rombo.','Los caminos de excepción se resuelven informalmente.','Incorporar decisiones con ambas ramas etiquetadas.',''],
+  ['H03','Sintaxis','A','Las líneas rojas hacia Comité Quirúrgico y Reevaluación no retornan al flujo.','No se sabe si el paciente vuelve al listado, se reprioriza o egresa.','Cerrar ambos lazos con destino explícito y causal SIGTE.','q8'],
+  ['H04','Sintaxis','M','Comité Quirúrgico, Reevaluación y Programación de Tabla se dibujan como documentos siendo actividades.','Confunde registro con acción.','Unificar símbolos.','q9'],
+  ['H05','Sintaxis','M','No hay leyenda de símbolos ni colores.','Cada lector interpreta los íconos a su manera.','Agregar leyenda.',''],
+  ['H06','Sintaxis','A','Hay inicios pero ningún punto de término. Hospitalización no es un fin.','No se define cuándo termina el proceso.','Definir eventos de fin y cierre administrativo.','s3'],
+  ['H07','Entradas','C','La entrada UEH / Hospitalizado no tiene ningún paso dibujado.','El circuito de urgencia no está diseñado.','Dibujar el circuito de urgencia o declarar alcance electivo.','i5'],
+  ['H08','Entradas','A','No existe punto de fusión entre vía electiva y vía de urgencia.','No hay regla de desplazamiento de electivas.','Converger ambas vías en la reunión diaria de tabla.','t2'],
+  ['H09','Entradas','M','El corte GES no define horizonte de por vencer ni escalamiento.','Garantías incumplidas sin alerta previa.','Definir horizonte y responsable de escalar.','q5'],
+  ['H10','Prequirúrgico','A','La evaluación preanestésica aparece como bullet en la indicación del cirujano.','Anestesia no toca el proceso; no hay apto / no apto.','Crear paso de evaluación preanestésica con decisión.','q1'],
+  ['H11','Prequirúrgico','A','La SIQ incompleta no tiene camino de devolución.','SIQ incompletas se acumulan sin dueño.','Rama SIQ devuelta con plazo.','q3'],
+  ['H12','Prequirúrgico','A','La depuración a SIQ única aparece al final del subproceso.','Duplicados inflan listados y SIGTE.','Depurar al ingreso.','q15'],
+  ['H13','Prequirúrgico','A','Dos priorizaciones sin criterios explícitos ni responsable.','No se sabe qué ordena cada embudo.','Documentar matriz de criterios.','q13'],
+  ['H14','Prequirúrgico','C','Tres contactos telefónicos sin responsable, intentos, registro ni tratamiento del no ubicable.','Origen de la mayoría de causales de egreso, no modelado.','Definir rol, protocolo de intentos y ramas de resultado.','q11'],
+  ['H15','Prequirúrgico','C','SIGTE aparece desconectado y después de la segunda priorización.','Tiempo de espera subestimado si el registro no lleva la fecha de la SIQ.','Verificar el momento real de registro; ingreso con fecha de SIQ.','q14'],
+  ['H16','Prequirúrgico','A','GES entra como listado pero no se cierra en SIGGES tras la cirugía.','Garantías cumplidas siguen como pendientes.','Cierre SIGGES en el postquirúrgico.','q5'],
+  ['H17','Prequirúrgico','M','Comité Quirúrgico y Comité de Tabla tienen roles no diferenciados.','Ambigüedad sobre quién decide qué.','Definir integrantes y decisiones de cada comité.','t1'],
+  ['H18','Prequirúrgico','B','Encuesta no indica cuál.','No se sabe qué instrumento es.','Nombrar el instrumento.','q1'],
+  ['H19','Prequirúrgico','M','El consentimiento no se vuelve a verificar en admisión ni pabellón.','Ley 20.584 y pausa de seguridad exigen verificación.','Verificar en admisión y sign in.','t5'],
+  ['H20','Tabla','C','No hay verificación de recursos antes de fijar la tabla.','Principal causa de suspensión por causa hospital.','Paso de verificación de recursos con unidades de apoyo.','t2'],
+  ['H21','Tabla','C','No existe la suspensión ni su reprogramación.','No se puede medir tasa de suspensión.','Rama suspendida con causa y retorno a tabla.','x1'],
+  ['H22','Tabla','M','No hay lista de reserva ni reemplazos.','Hora de pabellón vacía ante suspensión.','Lista de reemplazo por especialidad.','t4'],
+  ['H23','Tabla','A','Admisión flota sin flecha y sin modalidad de ingreso.','No se modela la cirugía ambulatoria.','Rama por modalidad.','t5'],
+  ['H24','Quirúrgico','A','El subproceso quirúrgico es un solo ícono.','Faltan pausa de seguridad, conteo, protocolo operatorio, muestras.','Referenciar procedimiento hijo.','x1'],
+  ['H25','Postquirúrgico','A','El postquirúrgico termina en evaluación del destino.','Falta cierre administrativo, control post-op y biopsia.','Extender hasta el cierre.','o2'],
+  ['H26','Salidas','A','Solo dos salidas: Domicilio y Hospitalización.','Faltan UPC, reintervención, traslado, fallecimiento, vuelve a su cama.','Completar eventos de fin.','s1'],
+  ['H27','Roles','C','El organigrama y el proceso no se hablan; enfermería y anestesia no aparecen.','No hay RACI.','Rediseñar en carriles por rol.',''],
+  ['H28','Roles','A','No se declara dueño del proceso.','Sin árbitro entre especialidad, UPPQ y pabellón.','Nombrar dueño extremo a extremo.',''],
+  ['H29','Roles','M','Oftalmología tiene coordinadora propia y ningún flujo propio.','El flujo general la sobredimensiona.','Variante oftalmológica.',''],
+  ['H30','Roles','B','Nomenclatura inconsistente: Unidad Pre Quirúrgica vs UPPQ.','Resta credibilidad.','Normalizar nombres.',''],
+  ['H31','Transversal','A','Ningún paso tiene plazo.','No hay indicadores de proceso.','SLA por paso, KPI por subproceso.',''],
+  ['H32','Transversal','A','Los registros no dicen dónde viven.','No hay fuente de verdad.','Declarar sistema fuente por registro.','q2'],
+  ['H33','Transversal','M','Todo el contacto con el paciente es saliente.','El paciente no puede informar cambios.','Definir canal de entrada.','q12'],
+];
+
+/* =====================================================================
+   VALIDADOR
+   ===================================================================== */
+function validate(f){
+  const out=[];const add=(sev,code,msg,node,edge)=>out.push({sev,code,msg,node,edge});
+  const inE=id=>f.edges.filter(e=>e.to===id), outE=id=>f.edges.filter(e=>e.from===id);
+  const N=f.nodes;
+  if(!f.dueno) add('A','V16','El flujo no declara dueño del proceso.');
+  if(!f.alcance) add('M','V18','El flujo no declara alcance.');
+  if(!N.some(n=>n.type==='inicio')) add('C','V01','No hay evento de inicio.');
+  if(!N.some(n=>n.type==='fin')) add('C','V02','No hay evento de fin.');
+  const names={};
+  N.forEach(n=>{
+    const i=inE(n.id),o=outE(n.id);
+    if(n.type!=='inicio'&&!i.length) add(n.type==='documento'||n.type==='sistema'?'M':'C','V03',`«${n.label}» no tiene ninguna entrada.`,n.id);
+    const infoSink=i.length&&i.every(e=>e.kind==='info');
+    if(n.type!=='fin'&&!o.length&&!infoSink) add(n.type==='documento'||n.type==='sistema'?'M':'C','V04',`«${n.label}» no tiene ninguna salida (callejón sin salida).`,n.id);
+    if(n.type==='decision'){
+      const seq=o.filter(e=>e.kind!=='info');
+      if(seq.length<2) add('C','V05',`La decisión «${n.label}» tiene ${seq.length} rama(s); necesita al menos 2.`,n.id);
+      seq.forEach(e=>{if(!e.label) add('A','V06',`Rama de «${n.label}» sin etiqueta.`,n.id,e.id);});
+    }
+    if(n.type==='contacto'){
+      const nxt=o.map(e=>nodeById(f,e.to));
+      const hasFail=o.some(e=>e.kind==='exc'||/no/i.test(e.label))||nxt.some(m=>m&&m.type==='decision');
+      if(!hasFail) add('A','V07',`El contacto «${n.label}» no modela qué pasa si no se ubica o rechaza.`,n.id);
+    }
+    if(['actividad','decision','contacto','comite','subproceso','sistema'].includes(n.type)&&!n.resp) add('A','V08',`«${n.label}» no tiene responsable.`,n.id);
+    if(['actividad','contacto','comite','subproceso'].includes(n.type)&&!n.sla) add('M','V09',`«${n.label}» no tiene plazo.`,n.id);
+    if((n.type==='documento'||n.type==='sistema')&&!n.sistema) add('M','V15',`El registro «${n.label}» no declara sistema fuente.`,n.id);
+    if(n.type==='subproceso'&&!n.notas) add('M','V17',`El subproceso «${n.label}» no referencia su procedimiento hijo.`,n.id);
+    if(!f.lanes.some(l=>l.id===n.lane)) add('A','V14',`«${n.label}» está fuera de todo carril.`,n.id);
+    const k=n.label.trim().toLowerCase();if(names[k]) add('B','V13',`Nombre duplicado: «${n.label}».`,n.id);names[k]=1;
+    o.filter(e=>e.kind==='exc').forEach(e=>{const t=nodeById(f,e.to);if(t&&t.type!=='fin'&&!outE(t.id).length) add('A','V12',`La excepción hacia «${t.label}» no retorna al flujo.`,t.id,e.id);});
+  });
+  f.lanes.forEach(l=>{if(!N.some(n=>n.lane===l.id)) add('B','V10',`El carril «${l.nombre}» está vacío.`);});
+  // alcanzabilidad desde inicio
+  const starts=N.filter(n=>n.type==='inicio').map(n=>n.id);const seen=new Set(starts);const q=[...starts];
+  while(q.length){const id=q.shift();outE(id).forEach(e=>{if(!seen.has(e.to)){seen.add(e.to);q.push(e.to);}});}
+  N.forEach(n=>{if(!seen.has(n.id)&&n.type!=='inicio'&&inE(n.id).length) add('M','V11',`«${n.label}» no es alcanzable desde ningún inicio.`,n.id);});
+  const rank={C:0,A:1,M:2,B:3,I:4};out.sort((a,b)=>rank[a.sev]-rank[b.sev]);
+  return out;
+}
+function score(f){
+  const v=validate(f);const pen={C:8,A:4,M:2,B:1,I:0};let s=100;v.forEach(x=>s-=pen[x.sev]);
+  return {score:Math.max(0,s),items:v};
+}
+
+/* =====================================================================
+   RENDER SVG
+   ===================================================================== */
+const svg=$('#svg'),vp=$('#viewport'),gL=$('#gLanes'),gE=$('#gEdges'),gN=$('#gNodes'),gT=$('#gTemp');
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+function wrap(text,maxChars){const words=String(text).split(/\s+/);const lines=[];let cur='';words.forEach(w=>{if((cur+' '+w).trim().length>maxChars&&cur){lines.push(cur);cur=w;}else cur=(cur+' '+w).trim();});if(cur)lines.push(cur);return lines.slice(0,4);}
+function applyView(){vp.setAttribute('transform',`translate(${view.x},${view.y}) scale(${view.z})`);}
+
+function renderCanvas(){
+  const f=cur();gL.innerHTML='';gE.innerHTML='';gN.innerHTML='';if(!f)return;
+  const W=canvasW(f);const tops=laneTops(f);
+  // carriles
+  f.lanes.forEach((l,i)=>{
+    const g=el('g',{'data-lane':l.id},gL);
+    el('rect',{x:0,y:tops[i],width:W,height:l.h||120,fill:l.color||'#fff',stroke:'#c9d1db','stroke-width':1},g);
+    el('rect',{x:0,y:tops[i],width:LANE_HEAD,height:l.h||120,fill:'#073763',stroke:'#c9d1db'},g);
+    const t=el('text',{x:14,y:tops[i]+(l.h||120)/2,fill:'#fff','font-size':12,'font-weight':'bold','font-family':'Verdana,sans-serif','dominant-baseline':'middle'},g);
+    wrap(l.nombre,18).forEach((ln,k,arr)=>{const ts=el('tspan',{x:14,dy:k===0?-(arr.length-1)*7:14},t);ts.textContent=ln;});
+  });
+  // aristas
+  f.edges.forEach(e=>renderEdge(f,e));
+  // nodos
+  f.nodes.forEach(n=>renderNode(f,n));
+}
+function edgePath(f,e){
+  const a=nodeById(f,e.from),b=nodeById(f,e.to);if(!a||!b)return null;
+  const ax=a.x,ay=a.y,bx=b.x,by=b.y;const acx=cx(a),acy=cy(a),bcx=cx(b),bcy=cy(b);
+  let d;
+  if(bx>=ax+NODE_W+20){ // adelante
+    const x1=ax+NODE_W,x2=bx;const mid=(e.via&&e.via>x1&&e.via<x2)?e.via:Math.round((x1+x2)/2);
+    d=Math.abs(acy-bcy)<4?`M${x1},${acy} L${x2},${bcy}`:`M${x1},${acy} H${mid} V${bcy} H${x2}`;
+  }else if(Math.abs(bcx-acx)<60){ // misma columna
+    if(bcy>acy) d=`M${acx},${ay+NODE_H} V${by}`; else d=`M${acx},${ay} V${by+NODE_H}`;
+  }else{ // retroceso
+    if(bcy>acy+30){ d=`M${acx},${ay+NODE_H} V${bcy} H${bx+NODE_W}`; }
+    else if(bcy<acy-30){ d=`M${acx},${ay} V${bcy} H${bx+NODE_W}`; }
+    else { const yb=ay+NODE_H+22; d=`M${acx},${ay+NODE_H} V${yb} H${bcx} V${by+NODE_H}`; }
+  }
+  return d;
+}
+function renderEdge(f,e){
+  const d=edgePath(f,e);if(!d)return;
+  const g=el('g',{'data-edge':e.id},gE);
+  const isSel=sel.edge===e.id;
+  const col=isSel?'#ff8f00':e.kind==='exc'?'#c62828':e.kind==='info'?'#1f6fb2':'#3b4656';
+  const mk=isSel?'url(#arrSel)':e.kind==='exc'?'url(#arrExc)':e.kind==='info'?'url(#arrInfo)':'url(#arr)';
+  el('path',{d,fill:'none',stroke:'transparent','stroke-width':14},g);
+  const p=el('path',{d,fill:'none',stroke:col,'stroke-width':isSel?2.5:1.6,'marker-end':mk,'stroke-dasharray':e.kind==='exc'?'6 4':e.kind==='info'?'2 3':'none'},g);
+  if(e.label){
+    const L=p.getTotalLength();const pt=p.getPointAtLength(L/2);
+    const tw=e.label.length*6.2+10;
+    el('rect',{x:pt.x-tw/2,y:pt.y-9,width:tw,height:16,rx:3,fill:'#fff',stroke:col,'stroke-width':.6},g);
+    const t=el('text',{x:pt.x,y:pt.y+3,'text-anchor':'middle','font-size':10,fill:col,'font-family':'Verdana,sans-serif'},g);t.textContent=e.label;
+  }
+}
+function renderNode(f,n){
+  const g=el('g',{'data-node':n.id,transform:`translate(${n.x},${n.y})`,style:'cursor:move'},gN);
+  const isSel=sel.nodes.has(n.id);
+  const stroke=isSel?'#ff8f00':'#073763';const sw=isSel?2.5:1.2;
+  const w=NODE_W,h=NODE_H;
+  let fill='#fff';
+  switch(n.type){
+    case 'inicio': el('circle',{cx:24,cy:h/2,r:18,fill:'#e6f4ea',stroke:'#2e7d32','stroke-width':sw+(isSel?1:0)},g);break;
+    case 'fin': el('circle',{cx:24,cy:h/2,r:18,fill:'#fdecea',stroke:'#c62828','stroke-width':sw+1},g);el('circle',{cx:24,cy:h/2,r:13,fill:'none',stroke:'#c62828','stroke-width':1},g);break;
+    case 'decision': el('polygon',{points:`${w/2},0 ${w},${h/2} ${w/2},${h} 0,${h/2}`,fill:'#fff8e1',stroke:stroke,'stroke-width':sw},g);break;
+    case 'documento': el('path',{d:`M0,0 H${w} V${h-8} Q${w*0.75},${h-16} ${w/2},${h-8} T0,${h-8} Z`,fill:'#f1f8ff',stroke:stroke,'stroke-width':sw},g);break;
+    case 'sistema': el('rect',{x:0,y:0,width:w,height:h,rx:4,fill:'#eef2f7',stroke:stroke,'stroke-width':sw},g);el('rect',{x:0,y:0,width:w,height:6,rx:3,fill:'#073763'},g);break;
+    case 'contacto': el('rect',{x:0,y:0,width:w,height:h,rx:14,fill:'#e8f0f8',stroke:stroke,'stroke-width':sw},g);break;
+    case 'comite': el('rect',{x:0,y:0,width:w,height:h,rx:6,fill:'#fff',stroke:stroke,'stroke-width':sw},g);el('rect',{x:3,y:3,width:w-6,height:h-6,rx:4,fill:'none',stroke:stroke,'stroke-width':.8},g);break;
+    case 'subproceso': el('rect',{x:0,y:0,width:w,height:h,rx:6,fill:'#fff',stroke:stroke,'stroke-width':sw+1},g);el('rect',{x:w/2-7,y:h-14,width:14,height:12,fill:'#fff',stroke:stroke},g);el('text',{x:w/2,y:h-4,'text-anchor':'middle','font-size':11,fill:stroke},g).textContent='+';break;
+    case 'espera': el('rect',{x:0,y:0,width:w,height:h,rx:28,fill:'#fafafa',stroke:stroke,'stroke-width':sw,'stroke-dasharray':'4 3'},g);break;
+    default: el('rect',{x:0,y:0,width:w,height:h,rx:6,fill:'#fff',stroke:stroke,'stroke-width':sw},g);
+  }
+  const isCircle=n.type==='inicio'||n.type==='fin';
+  const ic=el('text',{x:isCircle?24:10,y:isCircle?h/2+5:14,'font-size':isCircle?14:11,'text-anchor':isCircle?'middle':'start',fill:'#073763'},g);ic.textContent=TYPES[n.type]?.ic||'';
+  const maxc=n.type==='decision'?16:isCircle?17:22;
+  const lines=wrap(n.label,maxc);
+  const tx=isCircle?48:w/2;
+  const t=el('text',{x:tx,y:h/2+4-(lines.length-1)*6,'text-anchor':isCircle?'start':'middle','font-size':isCircle?9.5:10.5,'font-family':'Verdana,sans-serif',fill:'#1e2430','font-weight':n.type==='decision'?'bold':'normal'},g);
+  lines.forEach((ln,k)=>{const ts=el('tspan',{x:tx,dy:k===0?0:12},t);ts.textContent=ln;});
+  if(!isCircle){
+    const tags=[];if(n.resp)tags.push('👤');if(n.sla)tags.push('⏱');if(n.sistema)tags.push('🗄');if(n.checklist?.length)tags.push('☑');
+    if(tags.length){const tt=el('text',{x:w-6,y:12,'text-anchor':'end','font-size':9,fill:'#5f6b7a'},g);tt.textContent=tags.join(' ');}
+  }
+  const hall=(f.hallazgos||[]).filter(h=>h.node===n.id&&h.estado!=='Cerrado');
+  if(hall.length){el('circle',{cx:w-2,cy:-2,r:8,fill:'#c62828'},g);const ht=el('text',{x:w-2,y:1,'text-anchor':'middle','font-size':9,fill:'#fff','font-weight':'bold'},g);ht.textContent=hall.length;}
+  if(isSel&&sel.nodes.size===1){
+    el('circle',{cx:w+8,cy:h/2,r:7,fill:'#1f6fb2',stroke:'#fff','stroke-width':2,'data-handle':n.id,style:'cursor:crosshair'},g);
+  }
+}
+
+/* =====================================================================
+   INTERACCIÓN
+   ===================================================================== */
+function toWorld(ev){const r=svg.getBoundingClientRect();return {x:(ev.clientX-r.left-view.x)/view.z,y:(ev.clientY-r.top-view.y)/view.z};}
+function nodeAtPoint(ev){const t=document.elementFromPoint(ev.clientX,ev.clientY);const g=t&&t.closest?t.closest('[data-node]'):null;return g?g.getAttribute('data-node'):null;}
+
+svg.addEventListener('mousedown',ev=>{
+  const f=cur();if(!f)return;
+  const t=ev.target;
+  if(t.hasAttribute&&t.hasAttribute('data-handle')){drag={type:'link',from:t.getAttribute('data-handle')};svg.classList.add('connect');ev.preventDefault();return;}
+  const ng=t.closest?t.closest('[data-node]'):null;
+  const eg=t.closest?t.closest('[data-edge]'):null;
+  if(spaceDown||ev.button===1||(ev.altKey&&!ng)){drag={type:'pan',sx:ev.clientX,sy:ev.clientY,vx:view.x,vy:view.y};svg.classList.add('pan');ev.preventDefault();return;}
+  if(ng){
+    const id=ng.getAttribute('data-node');
+    if(mode==='connect'){
+      if(!connectFrom){connectFrom=id;hint('Ahora clic en el nodo destino');selectNode(id,false);}
+      else{addEdge(connectFrom,id);connectFrom=null;hint('Conectar: clic en el nodo origen (Esc para salir)');}
+      return;
+    }
+    if(!sel.nodes.has(id)){selectNode(id,ev.shiftKey);}else if(ev.shiftKey){sel.nodes.delete(id);renderAll();return;}
+    const w=toWorld(ev);const starts={};sel.nodes.forEach(i=>{const n=nodeById(f,i);starts[i]={x:n.x,y:n.y};});
+    drag={type:'node',sx:w.x,sy:w.y,starts,moved:false};ev.preventDefault();return;
+  }
+  if(eg){selectEdge(eg.getAttribute('data-edge'));return;}
+  // vacío
+  if(mode==='connect'){connectFrom=null;hint('Conectar: clic en el nodo origen (Esc para salir)');return;}
+  sel.nodes.clear();sel.edge=null;renderAll();
+  drag={type:'pan',sx:ev.clientX,sy:ev.clientY,vx:view.x,vy:view.y};svg.classList.add('pan');
+});
+window.addEventListener('mousemove',ev=>{
+  if(!drag)return;const f=cur();
+  if(drag.type==='pan'){view.x=drag.vx+(ev.clientX-drag.sx);view.y=drag.vy+(ev.clientY-drag.sy);applyView();return;}
+  if(drag.type==='node'){
+    const w=toWorld(ev);const dx=w.x-drag.sx,dy=w.y-drag.sy;
+    if(!drag.moved&&Math.hypot(dx,dy)<3)return;
+    if(!drag.moved){pushUndo();drag.moved=true;}
+    sel.nodes.forEach(id=>{const n=nodeById(f,id);n.x=snap(drag.starts[id].x+dx);n.y=snap(drag.starts[id].y+dy);n.lane=laneAt(f,cy(n));});
+    renderCanvas();return;
+  }
+  if(drag.type==='link'){
+    gT.innerHTML='';const a=nodeById(f,drag.from);const w=toWorld(ev);
+    el('path',{d:`M${a.x+NODE_W},${cy(a)} L${w.x},${w.y}`,stroke:'#1f6fb2','stroke-width':2,'stroke-dasharray':'5 3',fill:'none'},gT);return;
+  }
+  if(drag.type==='palette'){hint('Suelta sobre el lienzo para crear «'+TYPES[drag.ntype].nm+'»');}
+});
+window.addEventListener('mouseup',ev=>{
+  if(!drag)return;const f=cur();
+  if(drag.type==='link'){gT.innerHTML='';svg.classList.remove('connect');const to=nodeAtPoint(ev);if(to&&to!==drag.from)addEdge(drag.from,to);}
+  if(drag.type==='node'&&drag.moved){commit();}
+  if(drag.type==='pan'){svg.classList.remove('pan');}
+  if(drag.type==='palette'){hint('');const r=svg.getBoundingClientRect();if(ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom){const w=toWorld(ev);addNode(drag.ntype,w.x-NODE_W/2,w.y-NODE_H/2);}}
+  drag=null;
+});
+svg.addEventListener('dblclick',ev=>{const ng=ev.target.closest?ev.target.closest('[data-node]'):null;if(ng){selectNode(ng.getAttribute('data-node'),false);showTab('props');setTimeout(()=>{const i=$('#p_label');if(i){i.focus();i.select();}},30);}});
+svg.addEventListener('wheel',ev=>{
+  ev.preventDefault();
+  if(ev.ctrlKey||ev.metaKey){const r=svg.getBoundingClientRect();const mx=ev.clientX-r.left,my=ev.clientY-r.top;const z0=view.z;const z1=Math.min(3,Math.max(.15,z0*(ev.deltaY<0?1.1:0.9)));view.x=mx-(mx-view.x)*z1/z0;view.y=my-(my-view.y)*z1/z0;view.z=z1;}
+  else{view.x-=ev.deltaX;view.y-=ev.deltaY;}
+  applyView();
+},{passive:false});
+window.addEventListener('keydown',ev=>{
+  const tag=(ev.target.tagName||'').toLowerCase();const typing=tag==='input'||tag==='textarea'||tag==='select';
+  if(ev.key===' '&&!typing){spaceDown=true;svg.classList.add('pan');ev.preventDefault();}
+  if(typing)return;
+  const f=cur();if(!f)return;
+  if((ev.key==='Delete'||ev.key==='Backspace')){deleteSelection();ev.preventDefault();}
+  if((ev.metaKey||ev.ctrlKey)&&ev.key.toLowerCase()==='z'){ev.shiftKey?redo():undo();ev.preventDefault();}
+  if((ev.metaKey||ev.ctrlKey)&&ev.key.toLowerCase()==='d'){duplicateSelection();ev.preventDefault();}
+  if(ev.key.toLowerCase()==='c'&&!ev.metaKey&&!ev.ctrlKey){toggleConnect();}
+  if(ev.key.toLowerCase()==='p'&&!ev.metaKey&&!ev.ctrlKey){togglePres();}
+  if(ev.key==='Escape'){if(mode==='connect')toggleConnect();sel.nodes.clear();sel.edge=null;renderAll();}
+});
+window.addEventListener('keyup',ev=>{if(ev.key===' '){spaceDown=false;svg.classList.remove('pan');}});
+
+function selectNode(id,add){if(!add)sel.nodes.clear();sel.nodes.add(id);sel.edge=null;renderAll();}
+function selectEdge(id){sel.nodes.clear();sel.edge=id;renderAll();showTab('props');}
+function addEdge(from,to){const f=cur();if(from===to)return;if(f.edges.some(e=>e.from===from&&e.to===to)){toast('Ya existe ese conector');return;}
+  pushUndo();const a=nodeById(f,from);const e={id:uid('e'),from,to,label:'',kind:'seq'};f.edges.push(e);sel.nodes.clear();sel.edge=e.id;commit();showTab('props');
+  if(a.type==='decision'){setTimeout(()=>{const i=$('#e_label');if(i)i.focus();},30);}
+}
+function addNode(type,x,y,laneId){const f=cur();pushUndo();
+  if(x===undefined){const r=svg.getBoundingClientRect();x=(r.width/2-view.x)/view.z-NODE_W/2;y=(r.height/2-view.y)/view.z-NODE_H/2;}
+  const n=newNode(type,x,y,laneId||laneAt(f,y+NODE_H/2));f.nodes.push(n);sel.nodes.clear();sel.nodes.add(n.id);commit();showTab('props');
+  setTimeout(()=>{const i=$('#p_label');if(i){i.focus();i.select();}},30);
+}
+function deleteSelection(){const f=cur();if(!sel.nodes.size&&!sel.edge)return;pushUndo();
+  if(sel.edge){f.edges=f.edges.filter(e=>e.id!==sel.edge);sel.edge=null;}
+  if(sel.nodes.size){f.nodes=f.nodes.filter(n=>!sel.nodes.has(n.id));f.edges=f.edges.filter(e=>!sel.nodes.has(e.from)&&!sel.nodes.has(e.to));(f.hallazgos||[]).forEach(h=>{if(sel.nodes.has(h.node))h.node='';});sel.nodes.clear();}
+  commit();
+}
+function duplicateSelection(){const f=cur();if(!sel.nodes.size)return;pushUndo();const map={};const news=[];
+  sel.nodes.forEach(id=>{const n=nodeById(f,id);const c=JSON.parse(JSON.stringify(n));c.id=uid('n');c.x+=30;c.y+=30;c.lane=laneAt(f,cy(c));map[id]=c.id;news.push(c);});
+  f.edges.filter(e=>map[e.from]&&map[e.to]).forEach(e=>f.edges.push({...e,id:uid('e'),from:map[e.from],to:map[e.to]}));
+  f.nodes.push(...news);sel.nodes=new Set(news.map(n=>n.id));commit();
+}
+function toggleConnect(){mode=mode==='connect'?'select':'connect';connectFrom=null;$('#btnConnect').style.background=mode==='connect'?'#ff8f00':'';svg.classList.toggle('connect',mode==='connect');hint(mode==='connect'?'Conectar: clic en el nodo origen, luego en el destino (Esc para salir)':'');}
+function togglePres(){document.body.classList.toggle('pres');setTimeout(fit,50);}
+function fit(){const f=cur();if(!f||!f.nodes.length){view={x:20,y:20,z:.8};applyView();return;}
+  const r=svg.getBoundingClientRect();const W=canvasW(f);const H=laneTops(f).slice(-1)[0]+(f.lanes.slice(-1)[0]?.h||120);
+  if(r.width<50||r.height<50){requestAnimationFrame(fit);return;}const z=Math.max(.12,Math.min((r.width-40)/W,(r.height-40)/H,1.5));view={z,x:Math.max(10,(r.width-W*z)/2),y:Math.max(10,(r.height-H*z)/2)};applyView();}
+$('#zIn').onclick=()=>{view.z=Math.min(3,view.z*1.2);applyView();};
+$('#zOut').onclick=()=>{view.z=Math.max(.15,view.z/1.2);applyView();};
+$('#zFit').onclick=fit;
+$('#btnUndo').onclick=undo;$('#btnRedo').onclick=redo;$('#btnConnect').onclick=toggleConnect;$('#btnPres').onclick=togglePres;
+$('#btnLegend').onclick=()=>{legendOn=!legendOn;$('#legend').classList.toggle('show',legendOn);};
+$('#flowTitle').addEventListener('input',ev=>{const f=cur();if(f){f.nombre=ev.target.value;save();renderFlows();}});
+
+/* palette */
+(function(){const p=$('#palette');Object.entries(TYPES).forEach(([k,t])=>{const d=document.createElement('div');d.className='pal';d.title=t.desc;d.innerHTML=`<div class="ic">${t.ic}</div><div class="nm">${t.nm}</div>`;
+  d.addEventListener('mousedown',ev=>{drag={type:'palette',ntype:k};ev.preventDefault();});
+  d.addEventListener('click',()=>{if(drag)return;addNode(k);});
+  p.appendChild(d);});})();
+/* legend */
+$('#legend').innerHTML=`<b style="color:var(--azul)">Leyenda</b>
+<div class="row"><svg width="28" height="18"><rect x="1" y="2" width="26" height="14" rx="3" fill="#fff" stroke="#073763"/></svg>Actividad</div>
+<div class="row"><svg width="28" height="18"><polygon points="14,1 27,9 14,17 1,9" fill="#fff8e1" stroke="#073763"/></svg>Decisión (rombo)</div>
+<div class="row"><svg width="28" height="18"><path d="M1,1 H27 V13 Q20,9 14,13 T1,13 Z" fill="#f1f8ff" stroke="#073763"/></svg>Documento / listado</div>
+<div class="row"><svg width="28" height="18"><rect x="1" y="2" width="26" height="14" rx="2" fill="#eef2f7" stroke="#073763"/><rect x="1" y="2" width="26" height="4" fill="#073763"/></svg>Registro en sistema</div>
+<div class="row"><svg width="28" height="18"><rect x="1" y="2" width="26" height="14" rx="7" fill="#e8f0f8" stroke="#073763"/></svg>Contacto con paciente</div>
+<div class="row"><svg width="28" height="18"><rect x="1" y="2" width="26" height="14" rx="2" fill="#fff" stroke="#073763"/><rect x="3" y="4" width="22" height="10" fill="none" stroke="#073763" stroke-width=".7"/></svg>Comité</div>
+<div class="row"><svg width="28" height="18"><rect x="1" y="2" width="26" height="14" rx="2" fill="#fff" stroke="#073763" stroke-width="2"/></svg>Subproceso (procedimiento hijo)</div>
+<div class="row"><svg width="28" height="18"><circle cx="9" cy="9" r="7" fill="#e6f4ea" stroke="#2e7d32"/><circle cx="21" cy="9" r="7" fill="#fdecea" stroke="#c62828" stroke-width="2"/></svg>Inicio · Fin</div>
+<div class="row"><svg width="28" height="18"><line x1="1" y1="9" x2="27" y2="9" stroke="#3b4656" stroke-width="1.6"/></svg>Secuencia</div>
+<div class="row"><svg width="28" height="18"><line x1="1" y1="9" x2="27" y2="9" stroke="#c62828" stroke-width="1.6" stroke-dasharray="5 3"/></svg>Excepción / retorno</div>
+<div class="row"><svg width="28" height="18"><line x1="1" y1="9" x2="27" y2="9" stroke="#1f6fb2" stroke-width="1.6" stroke-dasharray="2 3"/></svg>Información al paciente</div>
+<div class="row"><span style="background:#c62828;color:#fff;border-radius:8px;padding:0 6px;font-size:10px;font-weight:bold">n</span>Hallazgos abiertos en el nodo</div>
+<div class="row muted">👤 responsable · ⏱ plazo · 🗄 sistema · ☑ checklist</div>`;
+
+/* =====================================================================
+   PANELES
+   ===================================================================== */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.tab));
+function showTab(id){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===id));document.querySelectorAll('.tabpane').forEach(p=>p.classList.toggle('active',p.id==='tab-'+id));}
+
+function renderAll(){renderCanvas();renderProps();renderValid();renderSteps();renderHall();renderExp();renderFlows();updUndo();const f=cur();$('#flowTitle').value=f?f.nombre:'';}
+
+function renderFlows(){const c=$('#flows');c.innerHTML='';state.flows.forEach(f=>{const d=document.createElement('div');d.className='flowitem'+(f.id===state.activeId?' active':'');
+  const sc=score(f).score;d.innerHTML=`<div class="n">${esc(f.nombre)}</div><div class="m">v${esc(f.version)} · ${f.nodes.length} nodos · ${f.edges.length} conectores · madurez ${sc}</div>`;
+  d.onclick=()=>{if(f.id!==state.activeId){state.activeId=f.id;undoStack=[];redoStack=[];sel.nodes.clear();sel.edge=null;save();renderAll();fit();}};c.appendChild(d);});}
+$('#btnNewFlow').onclick=()=>{const f=newFlow('Nuevo flujo '+(state.flows.length+1));state.flows.unshift(f);state.activeId=f.id;undoStack=[];redoStack=[];save();renderAll();fit();showTab('props');};
+
+function fld(id,label,val,type='text',ph=''){return `<label class="f">${label}</label>${type==='textarea'?`<textarea id="${id}" placeholder="${esc(ph)}">${esc(val)}</textarea>`:`<input id="${id}" type="text" value="${esc(val)}" placeholder="${esc(ph)}">`}`;}
+
+function renderProps(){
+  const f=cur();const c=$('#tab-props');if(!f){c.innerHTML='';return;}
+  if(sel.edge){
+    const e=f.edges.find(x=>x.id===sel.edge);if(!e){sel.edge=null;return renderProps();}
+    const a=nodeById(f,e.from),b=nodeById(f,e.to);
+    c.innerHTML=`<div class="card"><b>Conector</b><div class="muted">${esc(a?.label)} → ${esc(b?.label)}</div></div>
+      ${fld('e_label','Etiqueta (Sí / No / condición)',e.label)}
+      <label class="f">Tipo</label><select id="e_kind"><option value="seq">Secuencia</option><option value="exc">Excepción / retorno (rojo)</option><option value="info">Información al paciente (azul)</option></select>
+      <label class="f">Quiebre vertical (X en el lienzo, opcional)</label><input id="e_via" type="number" step="10" value="${e.via||''}" placeholder="vacío = punto medio">
+      <div style="margin-top:10px;display:flex;gap:6px"><button id="e_rev">Invertir sentido</button><button class="danger" id="e_del">Eliminar</button></div>`;
+    $('#e_kind').value=e.kind||'seq';
+    $('#e_label').oninput=ev=>{e.label=ev.target.value;save();renderCanvas();};
+    $('#e_kind').onchange=ev=>{pushUndo();e.kind=ev.target.value;commit();};
+    $('#e_via').onchange=ev=>{pushUndo();e.via=ev.target.value?+ev.target.value:undefined;commit();};
+    $('#e_rev').onclick=()=>{pushUndo();[e.from,e.to]=[e.to,e.from];commit();};
+    $('#e_del').onclick=deleteSelection;
+    return;
+  }
+  if(sel.nodes.size===1){
+    const n=nodeById(f,[...sel.nodes][0]);if(!n){sel.nodes.clear();return renderProps();}
+    const laneOpts=f.lanes.map(l=>`<option value="${l.id}" ${l.id===n.lane?'selected':''}>${esc(l.nombre)}</option>`).join('');
+    const typeOpts=Object.entries(TYPES).map(([k,t])=>`<option value="${k}" ${k===n.type?'selected':''}>${t.ic} ${t.nm}</option>`).join('');
+    const ins=f.edges.filter(e=>e.to===n.id).map(e=>nodeById(f,e.from)?.label).filter(Boolean);
+    const outs=f.edges.filter(e=>e.from===n.id).map(e=>(e.label?e.label+' → ':'')+(nodeById(f,e.to)?.label||'')).filter(Boolean);
+    const hall=(f.hallazgos||[]).filter(h=>h.node===n.id);
+    c.innerHTML=`<div class="row2"><div><label class="f">Tipo</label><select id="p_type">${typeOpts}</select></div><div><label class="f">Carril</label><select id="p_lane">${laneOpts}</select></div></div>
+      ${fld('p_label','Nombre del paso',n.label)}
+      ${fld('p_resp','Responsable (rol)',n.resp,'text','Quién ejecuta')}
+      <div class="row2"><div>${fld('p_sla','Plazo / SLA',n.sla,'text','p. ej. 2 días hábiles')}</div><div>${fld('p_sistema','Sistema / registro',n.sistema,'text','SIGTE, HIS, planilla…')}</div></div>
+      ${fld('p_entradas','Entradas (insumos)',n.entradas,'textarea','Qué necesita para ejecutarse')}
+      ${fld('p_salidas','Salidas (productos)',n.salidas,'textarea','Qué produce')}
+      ${fld('p_kpi','Indicador',n.kpi,'text','Cómo se mide')}
+      ${fld('p_notas','Notas / reglas de negocio',n.notas,'textarea','')}
+      <label class="f">Checklist del paso</label><div id="p_chk"></div><div style="display:flex;gap:4px;margin-top:4px"><input id="p_chk_new" type="text" placeholder="Nuevo ítem y Enter"></div>
+      <div class="card" style="margin-top:10px"><div class="kv"><span class="muted">Viene de</span><b>${ins.length?esc(ins.join(' · ')):'—'}</b></div><div class="kv"><span class="muted">Va hacia</span><b>${outs.length?esc(outs.join(' · ')):'—'}</b></div></div>
+      ${hall.length?`<div class="card"><b>Hallazgos vinculados</b>${hall.map(h=>`<div style="margin-top:4px"><span class="badge b-${h.sev}">${h.id}</span> ${esc(h.texto)} <span class="muted">· ${esc(h.estado)}</span></div>`).join('')}</div>`:''}
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button id="p_path">Resaltar camino</button><button id="p_dup">Duplicar</button><button class="danger" id="p_del">Eliminar</button></div>`;
+    const bind=(id,key,rerender)=>{$('#'+id).oninput=ev=>{n[key]=ev.target.value;save();if(rerender)renderCanvas();};$('#'+id).onchange=()=>{renderValid();renderSteps();renderFlows();};};
+    bind('p_label','label',true);bind('p_resp','resp',true);bind('p_sla','sla',true);bind('p_sistema','sistema',true);bind('p_entradas','entradas');bind('p_salidas','salidas');bind('p_kpi','kpi');bind('p_notas','notas');
+    $('#p_type').onchange=ev=>{pushUndo();n.type=ev.target.value;commit();};
+    $('#p_lane').onchange=ev=>{pushUndo();n.lane=ev.target.value;const i=laneIdx(f,n.lane);n.y=laneTops(f)[i]+22;commit();};
+    const renderChk=()=>{const d=$('#p_chk');d.innerHTML=(n.checklist||[]).map((it,i)=>`<div class="chk"><span>☑</span><span style="flex:1">${esc(it)}</span><button class="small" data-i="${i}">×</button></div>`).join('')||'<div class="muted">Sin ítems</div>';d.querySelectorAll('button').forEach(b=>b.onclick=()=>{pushUndo();n.checklist.splice(+b.dataset.i,1);save();renderChk();renderCanvas();});};
+    renderChk();
+    $('#p_chk_new').onkeydown=ev=>{if(ev.key==='Enter'&&ev.target.value.trim()){pushUndo();n.checklist=n.checklist||[];n.checklist.push(ev.target.value.trim());ev.target.value='';save();renderChk();renderCanvas();}};
+    $('#p_del').onclick=deleteSelection;$('#p_dup').onclick=duplicateSelection;$('#p_path').onclick=()=>highlightPath(n.id);
+    return;
+  }
+  if(sel.nodes.size>1){c.innerHTML=`<div class="card"><b>${sel.nodes.size} nodos seleccionados</b><div class="muted">Arrastra para mover en bloque. Supr para eliminar.</div></div><div style="display:flex;gap:6px"><button id="al_y">Alinear horizontal</button><button id="al_x">Alinear vertical</button><button class="danger" id="p_del">Eliminar</button></div>`;
+    $('#p_del').onclick=deleteSelection;
+    $('#al_y').onclick=()=>{pushUndo();const ns=[...sel.nodes].map(i=>nodeById(f,i));const y=ns[0].y;ns.forEach(n=>{n.y=y;n.lane=laneAt(f,cy(n));});commit();};
+    $('#al_x').onclick=()=>{pushUndo();const ns=[...sel.nodes].map(i=>nodeById(f,i));const x=ns[0].x;ns.forEach(n=>n.x=x);commit();};
+    return;}
+  // flujo
+  c.innerHTML=`<div class="card"><b style="color:var(--azul)">Ficha del flujo</b></div>
+    ${fld('f_version','Versión',f.version)}
+    ${fld('f_dueno','Dueño del proceso',f.dueno,'text','Rol que responde extremo a extremo')}
+    ${fld('f_alcance','Alcance',f.alcance,'textarea','Desde… hasta…; qué incluye y qué excluye')}
+    ${fld('f_desc','Descripción',f.descripcion,'textarea','')}
+    <label class="f">Carriles (roles)</label><div id="f_lanes"></div>
+    <div style="display:flex;gap:6px;margin-top:6px"><button id="f_addlane">+ Carril</button><button id="f_reflow">Reordenar columnas</button></div>
+    <div class="card" style="margin-top:12px"><div class="kv"><span class="muted">Creado</span><b>${new Date(f.creado).toLocaleDateString('es-CL')}</b></div><div class="kv"><span class="muted">Modificado</span><b>${new Date(f.mod).toLocaleString('es-CL')}</b></div><div class="kv"><span class="muted">Nodos / conectores</span><b>${f.nodes.length} / ${f.edges.length}</b></div></div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button id="f_dup">Duplicar flujo</button><button class="danger" id="f_del">Eliminar flujo</button></div>
+    <div class="muted" style="margin-top:12px;font-size:10px">Selecciona un nodo o conector para editar sus propiedades. Doble clic en un nodo edita su nombre.</div>`;
+  const bindF=(id,key)=>{$('#'+id).oninput=ev=>{f[key]=ev.target.value;save();};$('#'+id).onchange=()=>{renderValid();renderFlows();};};
+  bindF('f_version','version');bindF('f_dueno','dueno');bindF('f_alcance','alcance');bindF('f_desc','descripcion');
+  const rl=()=>{const d=$('#f_lanes');d.innerHTML=f.lanes.map((l,i)=>`<div class="lanerow"><input type="color" value="${l.color||'#ffffff'}" data-i="${i}" class="lc"><input type="text" value="${esc(l.nombre)}" data-i="${i}" class="ln"><input type="number" value="${l.h||120}" min="80" step="10" data-i="${i}" class="lh" title="Alto"><button class="small lu" data-i="${i}" title="Subir">↑</button><button class="small ld" data-i="${i}" title="Bajar">↓</button><button class="small lx danger" data-i="${i}" title="Eliminar">×</button></div>`).join('');
+    d.querySelectorAll('.ln').forEach(i=>i.oninput=ev=>{f.lanes[+i.dataset.i].nombre=ev.target.value;save();renderCanvas();});
+    d.querySelectorAll('.lc').forEach(i=>i.oninput=ev=>{f.lanes[+i.dataset.i].color=ev.target.value;save();renderCanvas();});
+    d.querySelectorAll('.lh').forEach(i=>i.onchange=ev=>{pushUndo();resizeLane(f,+i.dataset.i,+ev.target.value);commit();});
+    d.querySelectorAll('.lu').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;if(i===0)return;pushUndo();moveLane(f,i,i-1);commit();});
+    d.querySelectorAll('.ld').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;if(i===f.lanes.length-1)return;pushUndo();moveLane(f,i,i+1);commit();});
+    d.querySelectorAll('.lx').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;if(f.lanes.length===1){toast('Debe quedar al menos un carril');return;}if(!confirm('¿Eliminar el carril «'+f.lanes[i].nombre+'»? Sus nodos pasan al carril vecino.'))return;pushUndo();const tgt=f.lanes[i===0?1:i-1];f.nodes.filter(n=>n.lane===f.lanes[i].id).forEach(n=>{n.lane=tgt.id;});f.lanes.splice(i,1);relayoutY(f);commit();});};
+  rl();
+  $('#f_addlane').onclick=()=>{pushUndo();f.lanes.push({id:uid('l'),nombre:'Nuevo carril',color:'#ffffff',h:120});commit();};
+  $('#f_reflow').onclick=()=>{pushUndo();reflowColumns(f);commit();fit();};
+  $('#f_dup').onclick=()=>{const c2=JSON.parse(JSON.stringify(f));c2.id=uid('f');c2.nombre=f.nombre+' (copia)';c2.creado=new Date().toISOString();state.flows.unshift(c2);state.activeId=c2.id;undoStack=[];redoStack=[];save();renderAll();toast('Flujo duplicado');};
+  $('#f_del').onclick=()=>{if(!confirm('¿Eliminar el flujo «'+f.nombre+'»? Esta acción no se puede deshacer.'))return;state.flows=state.flows.filter(x=>x.id!==f.id);if(!state.flows.length)state.flows.push(newFlow('Nuevo flujo'));state.activeId=state.flows[0].id;undoStack=[];redoStack=[];save();renderAll();fit();};
+}
+function resizeLane(f,i,h){const tops=laneTops(f);const old=f.lanes[i].h||120;f.lanes[i].h=Math.max(80,h);const delta=f.lanes[i].h-old;f.nodes.forEach(n=>{if(n.y>=tops[i]+old)n.y+=delta;});}
+function moveLane(f,i,j){const [l]=f.lanes.splice(i,1);f.lanes.splice(j,0,l);relayoutY(f);}
+function relayoutY(f){ // reubica nodos según su carril conservando el offset relativo
+  const oldTops={};let y=0;f.lanes.forEach(l=>{oldTops[l.id]=y;y+=l.h||120;});
+  f.nodes.forEach(n=>{const li=laneIdx(f,n.lane);if(li<0){n.lane=f.lanes[0].id;}const top=laneTops(f)[laneIdx(f,n.lane)];const h=f.lanes[laneIdx(f,n.lane)].h||120;const rel=((n.y-top)%h+h)%h;n.y=top+Math.min(rel,h-NODE_H-4);});
+}
+function reflowColumns(f){ // ordena en columnas por orden topológico (BFS desde inicios) conservando carriles
+  const starts=f.nodes.filter(n=>n.type==='inicio');const col={};const q=[];starts.forEach(n=>{col[n.id]=0;q.push(n.id);});
+  const outE=id=>f.edges.filter(e=>e.from===id&&e.kind!=='exc');
+  let guard=0;while(q.length&&guard++<5000){const id=q.shift();outE(id).forEach(e=>{const c=col[id]+1;if(col[e.to]===undefined||col[e.to]<c){if(col[e.to]!==undefined&&c>60)return;col[e.to]=c;q.push(e.to);}});}
+  let maxc=Math.max(0,...Object.values(col));f.nodes.forEach(n=>{if(col[n.id]===undefined)col[n.id]=++maxc;});
+  const tops=laneTops(f);const used={};
+  f.nodes.forEach(n=>{const li=laneIdx(f,n.lane);const key=li+':'+col[n.id];const row=used[key]||0;used[key]=row+1;n.x=LANE_HEAD+30+col[n.id]*COL_W;n.y=tops[li]+22+row*70;});
+}
+function highlightPath(id){const f=cur();const down=new Set([id]),up=new Set([id]);let ch=true;
+  while(ch){ch=false;f.edges.forEach(e=>{if(down.has(e.from)&&!down.has(e.to)){down.add(e.to);ch=true;}if(up.has(e.to)&&!up.has(e.from)){up.add(e.from);ch=true;}});}
+  const all=new Set([...down,...up]);sel.nodes=all;renderAll();toast(`Camino: ${up.size-1} pasos aguas arriba · ${down.size-1} aguas abajo`);}
+
+function renderValid(){
+  const f=cur();const c=$('#tab-valid');if(!f)return;const {score:sc,items}=score(f);
+  $('#score').textContent='Madurez '+sc+'%';$('#score').style.color=sc>=80?'var(--ok)':sc>=50?'var(--warn)':'var(--crit)';
+  const cnt={C:0,A:0,M:0,B:0};items.forEach(i=>cnt[i.sev]=(cnt[i.sev]||0)+1);
+  c.innerHTML=`<div class="card"><b style="color:var(--azul)">Validador del flujo</b><div class="scorebar"><i style="width:${sc}%;background:${sc>=80?'var(--ok)':sc>=50?'var(--warn)':'var(--crit)'}"></i></div>
+    <div><span class="badge b-C">${cnt.C} críticos</span> <span class="badge b-A">${cnt.A} altos</span> <span class="badge b-M">${cnt.M} medios</span> <span class="badge b-B">${cnt.B} bajos</span></div>
+    <div class="muted" style="margin-top:6px;font-size:10px">Penalización: crítico 8 · alto 4 · medio 2 · bajo 1. Reglas: inicio/fin, entradas y salidas de cada nodo, ramas de decisión etiquetadas, contactos con rama de fallo, responsable, plazo, sistema fuente, excepciones que retornan, alcanzabilidad, carriles vacíos, dueño y alcance.</div></div>
+    ${items.length?items.map(i=>`<div class="card ${i.node||i.edge?'click':''}" data-n="${i.node||''}" data-e="${i.edge||''}"><span class="badge b-${i.sev}">${SEVN[i.sev]}</span> <span class="muted">${i.code}</span><div style="margin-top:3px">${esc(i.msg)}</div></div>`).join(''):'<div class="card" style="color:var(--ok)"><b>Sin observaciones.</b> El flujo cumple todas las reglas del validador.</div>'}`;
+  c.querySelectorAll('.card.click').forEach(d=>d.onclick=()=>{if(d.dataset.e){selectEdge(d.dataset.e);}else if(d.dataset.n){selectNode(d.dataset.n,false);}centerOn(d.dataset.n||nodeById(f,f.edges.find(e=>e.id===d.dataset.e)?.from)?.id);showTab('valid');});
+}
+function centerOn(id){const f=cur();const n=nodeById(f,id);if(!n)return;const r=svg.getBoundingClientRect();view.x=r.width/2-cx(n)*view.z;view.y=r.height/2-cy(n)*view.z;applyView();}
+
+function stepOrder(f){const starts=f.nodes.filter(n=>n.type==='inicio');const seen=new Set();const order=[];const q=[...starts];
+  starts.forEach(s=>seen.add(s.id));
+  while(q.length){const n=q.shift();order.push(n);f.edges.filter(e=>e.from===n.id).sort((a,b)=>(a.kind==='exc')-(b.kind==='exc')).forEach(e=>{if(!seen.has(e.to)){seen.add(e.to);const t=nodeById(f,e.to);if(t)q.push(t);}});}
+  f.nodes.forEach(n=>{if(!seen.has(n.id))order.push(n);});return order;}
+function renderSteps(){
+  const f=cur();const c=$('#tab-steps');if(!f)return;const order=stepOrder(f);const ln=id=>f.lanes.find(l=>l.id===id)?.nombre||'—';
+  c.innerHTML=`<div class="card"><b style="color:var(--azul)">Tabla de pasos</b><div class="muted">Orden de recorrido desde los inicios. Clic en una fila selecciona el nodo. Esta tabla es la base del procedimiento escrito y de la matriz de responsabilidades.</div></div>
+    <div style="overflow:auto"><table class="t"><thead><tr><th>#</th><th>Paso</th><th>Carril</th><th>Responsable</th><th>Plazo</th><th>Sistema</th><th>Salidas</th></tr></thead><tbody>
+    ${order.map((n,i)=>{const outs=f.edges.filter(e=>e.from===n.id).map(e=>(e.label?e.label+' → ':'')+(nodeById(f,e.to)?.label||'')).join('; ');
+      return `<tr class="click" data-n="${n.id}"><td>${i+1}</td><td>${TYPES[n.type]?.ic||''} ${esc(n.label)}</td><td>${esc(ln(n.lane))}</td><td>${esc(n.resp)||'<span class="muted">—</span>'}</td><td>${esc(n.sla)||'<span class="muted">—</span>'}</td><td>${esc(n.sistema)||''}</td><td>${esc(outs)}</td></tr>`;}).join('')}
+    </tbody></table></div>
+    <div class="card" style="margin-top:10px"><b>Matriz rol × pasos</b>${raciHtml(f)}</div>`;
+  c.querySelectorAll('tr.click').forEach(r=>r.onclick=()=>{selectNode(r.dataset.n,false);centerOn(r.dataset.n);showTab('steps');});
+}
+function raciHtml(f){const byLane={};f.lanes.forEach(l=>byLane[l.id]=[]);f.nodes.forEach(n=>{if(byLane[n.lane])byLane[n.lane].push(n);});
+  return `<table class="t" style="margin-top:6px"><thead><tr><th>Carril</th><th>Pasos</th><th>Decisiones</th><th>Registros</th></tr></thead><tbody>${f.lanes.map(l=>{const ns=byLane[l.id];return `<tr><td><b>${esc(l.nombre)}</b></td><td>${ns.filter(n=>['actividad','contacto','comite','subproceso','espera'].includes(n.type)).length}</td><td>${ns.filter(n=>n.type==='decision').length}</td><td>${ns.filter(n=>n.type==='documento'||n.type==='sistema').length}</td></tr>`;}).join('')}</tbody></table>`;}
+
+function renderHall(){
+  const f=cur();const c=$('#tab-hall');if(!f)return;f.hallazgos=f.hallazgos||[];
+  const cnt={};f.hallazgos.forEach(h=>cnt[h.estado]=(cnt[h.estado]||0)+1);
+  const nodeOpts=`<option value="">— sin nodo —</option>`+f.nodes.map(n=>`<option value="${n.id}">${esc(n.label)}</option>`).join('');
+  c.innerHTML=`<div class="card"><b style="color:var(--azul)">Registro de hallazgos</b><div class="muted">Observaciones al flujo, con severidad, estado y nodo vinculado. Los abiertos se muestran como globo rojo en el nodo.</div>
+    <div style="margin-top:6px">${Object.entries(cnt).map(([k,v])=>`<span class="badge b-I">${k}: ${v}</span> `).join('')||'<span class="muted">Sin hallazgos</span>'}</div>
+    <div style="display:flex;gap:6px;margin-top:8px"><button id="h_add" class="primary">+ Hallazgo</button><select id="h_filter"><option value="">Todos</option><option>Abierto</option><option>En curso</option><option>Cerrado</option></select></div></div>
+    <div id="h_list"></div>`;
+  const list=()=>{const flt=$('#h_filter').value;const d=$('#h_list');const items=f.hallazgos.filter(h=>!flt||h.estado===flt);
+    d.innerHTML=items.map(h=>`<div class="card" data-h="${h.id}">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span><span class="badge b-${h.sev}">${SEVN[h.sev]}</span> <b>${esc(h.id)}</b> <span class="muted">${esc(h.ambito||'')}</span></span><select class="h_estado small" style="width:auto"><option ${h.estado==='Abierto'?'selected':''}>Abierto</option><option ${h.estado==='En curso'?'selected':''}>En curso</option><option ${h.estado==='Cerrado'?'selected':''}>Cerrado</option></select></div>
+      <div style="margin-top:4px">${esc(h.texto)}</div>
+      ${h.consecuencia?`<div class="muted" style="margin-top:3px"><b>Consecuencia:</b> ${esc(h.consecuencia)}</div>`:''}
+      ${h.accion?`<div style="margin-top:3px;color:var(--azul)"><b>Acción:</b> ${esc(h.accion)}</div>`:''}
+      <div style="display:flex;gap:4px;margin-top:6px;align-items:center"><select class="h_node" style="flex:1">${nodeOpts}</select><button class="small h_edit">Editar</button><button class="small danger h_del">×</button></div></div>`).join('')||'<div class="muted">Nada que mostrar.</div>';
+    d.querySelectorAll('.card').forEach(card=>{const h=f.hallazgos.find(x=>x.id===card.dataset.h);card.querySelector('.h_node').value=h.node||'';
+      card.querySelector('.h_node').onchange=ev=>{h.node=ev.target.value;save();renderCanvas();};
+      card.querySelector('.h_estado').onchange=ev=>{h.estado=ev.target.value;save();renderCanvas();renderHall();};
+      card.querySelector('.h_del').onclick=()=>{if(!confirm('¿Eliminar '+h.id+'?'))return;f.hallazgos=f.hallazgos.filter(x=>x!==h);save();renderAll();};
+      card.querySelector('.h_edit').onclick=()=>editHall(h);});};
+  $('#h_filter').onchange=list;
+  $('#h_add').onclick=()=>{const n=f.hallazgos.length+1;const h={id:'H'+String(n).padStart(2,'0'),ambito:'',sev:'M',texto:'',consecuencia:'',accion:'',estado:'Abierto',node:[...sel.nodes][0]||''};f.hallazgos.push(h);save();editHall(h);};
+  list();
+}
+function editHall(h){const f=cur();const c=$('#tab-hall');
+  c.innerHTML=`<div class="card"><b style="color:var(--azul)">Editar hallazgo ${esc(h.id)}</b></div>
+    <div class="row2"><div>${fld('h_id','ID',h.id)}</div><div><label class="f">Severidad</label><select id="h_sev">${Object.entries(SEVN).map(([k,v])=>`<option value="${k}" ${h.sev===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
+    ${fld('h_amb','Ámbito',h.ambito,'text','Sintaxis, Entradas, Roles…')}
+    ${fld('h_txt','Hallazgo',h.texto,'textarea')}
+    ${fld('h_con','Consecuencia',h.consecuencia,'textarea')}
+    ${fld('h_acc','Acción propuesta',h.accion,'textarea')}
+    <div style="display:flex;gap:6px;margin-top:10px"><button class="primary" id="h_ok">Guardar</button><button id="h_cancel">Volver</button></div>`;
+  $('#h_ok').onclick=()=>{h.id=$('#h_id').value.trim()||h.id;h.sev=$('#h_sev').value;h.ambito=$('#h_amb').value;h.texto=$('#h_txt').value;h.consecuencia=$('#h_con').value;h.accion=$('#h_acc').value;save();renderAll();showTab('hall');};
+  $('#h_cancel').onclick=()=>{renderHall();};
+}
+
+function renderExp(){
+  const f=cur();const c=$('#tab-exp');if(!f)return;
+  c.innerHTML=`<div class="card"><b style="color:var(--azul)">Exportar e importar</b><div class="muted">Los flujos se guardan automáticamente en este navegador. Exporta JSON para respaldar, compartir o versionar en Drive.</div></div>
+    <div class="card"><b>Imagen</b><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button id="x_svg">SVG</button><button id="x_png">PNG (2×)</button><button id="x_print">Documento imprimible</button></div><div class="muted" style="margin-top:4px">El documento incluye el diagrama, la ficha, la tabla de pasos, la validación y los hallazgos. Se abre en una pestaña nueva lista para imprimir o guardar como PDF.</div></div>
+    <div class="card"><b>Datos</b><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button id="x_json">JSON de este flujo</button><button id="x_all">JSON de todos</button><button id="x_imp">Importar JSON</button><button id="x_csv">CSV de pasos</button></div></div>
+    <div class="card"><b>Ejemplos</b><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button id="x_seed">Restaurar ejemplos del Proceso Quirúrgico</button></div><div class="muted" style="margin-top:4px">Agrega de nuevo los flujos AS-IS y TO-BE sin borrar los tuyos.</div></div>`;
+  $('#x_svg').onclick=()=>download(f.nombre+'.svg',svgString(f),'image/svg+xml');
+  $('#x_png').onclick=()=>exportPng(f);
+  $('#x_print').onclick=()=>openDoc(f);
+  $('#x_json').onclick=()=>download(f.nombre+'.json',JSON.stringify(f,null,2),'application/json');
+  $('#x_all').onclick=()=>download('flujos_hds_todos.json',JSON.stringify(state,null,2),'application/json');
+  $('#x_imp').onclick=()=>$('#fileIn').click();
+  $('#x_csv').onclick=()=>{const order=stepOrder(f);const ln=id=>f.lanes.find(l=>l.id===id)?.nombre||'';const rows=[['#','Paso','Tipo','Carril','Responsable','Plazo','Sistema','Entradas','Salidas','KPI','Notas']];order.forEach((n,i)=>rows.push([i+1,n.label,TYPES[n.type]?.nm,ln(n.lane),n.resp,n.sla,n.sistema,n.entradas,n.salidas,n.kpi,n.notas]));download(f.nombre+'_pasos.csv','﻿'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n'),'text/csv');};
+  $('#x_seed').onclick=()=>{seedFlows().forEach(s=>{s.id=uid('f');state.flows.unshift(s);});state.activeId=state.flows[0].id;save();renderAll();fit();toast('Ejemplos restaurados');};
+}
+$('#fileIn').onchange=ev=>{const file=ev.target.files[0];if(!file)return;const rd=new FileReader();rd.onload=()=>{try{const j=JSON.parse(rd.result);const arr=j.flows?j.flows:[j];let n=0;arr.forEach(fl=>{if(!fl.nodes||!fl.lanes)return;fl.id=uid('f');fl.hallazgos=fl.hallazgos||[];state.flows.unshift(fl);n++;});if(n){state.activeId=state.flows[0].id;save();renderAll();fit();toast(n+' flujo(s) importado(s)');}else toast('El archivo no contiene flujos válidos');}catch(e){toast('JSON inválido');}ev.target.value='';};rd.readAsText(file);};
+function download(name,content,type){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name.replace(/[\/\\:]/g,'-');document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+function svgString(f){const W=canvasW(f);const H=laneTops(f).slice(-1)[0]+(f.lanes.slice(-1)[0]?.h||120);
+  const keepSel=sel;sel={nodes:new Set(),edge:null};renderCanvas();
+  const inner=vp.innerHTML;sel=keepSel;renderCanvas();
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Verdana,sans-serif"><defs>${$('defs').innerHTML}</defs><rect width="100%" height="100%" fill="#fff"/>${inner}</svg>`;}
+function exportPng(f){const s=svgString(f);const img=new Image();const W=canvasW(f);const H=laneTops(f).slice(-1)[0]+(f.lanes.slice(-1)[0]?.h||120);
+  img.onload=()=>{const cv=document.createElement('canvas');cv.width=W*2;cv.height=H*2;const ctx=cv.getContext('2d');ctx.scale(2,2);ctx.drawImage(img,0,0);cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=f.nombre+'.png';a.click();},'image/png');};
+  img.onerror=()=>toast('No se pudo rasterizar; usa SVG');img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);}
+function openDoc(f){const {score:sc,items}=score(f);const order=stepOrder(f);const ln=id=>f.lanes.find(l=>l.id===id)?.nombre||'';
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${esc(f.nombre)}</title><style>body{font-family:Verdana,sans-serif;font-size:11px;color:#1e2430;margin:24px}h1{color:#073763;font-size:20px;margin:0}h2{color:#073763;font-size:14px;border-bottom:1px solid #073763;padding-bottom:3px;margin-top:24px}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #ccc;padding:4px;vertical-align:top;text-align:left}th{background:#e8f0f8;color:#073763}.muted{color:#666}.b{display:inline-block;color:#fff;border-radius:8px;padding:0 6px;font-size:9px;font-weight:bold}.C{background:#b3261e}.A{background:#d9822b}.M{background:#c9a400}.B{background:#6b8e23}.diag{width:100%;overflow:auto;border:1px solid #ddd;margin-top:8px}.diag svg{max-width:100%;height:auto}@media print{.diag{overflow:visible}@page{size:A4 landscape;margin:12mm}}</style></head><body>
+  <h1>${esc(f.nombre)}</h1><div class="muted">Versión ${esc(f.version)} · ${new Date(f.mod).toLocaleDateString('es-CL')} · Dueño: ${esc(f.dueno)||'—'} · Madurez ${sc}%</div>
+  <p><b>Alcance.</b> ${esc(f.alcance)||'—'}</p><p><b>Descripción.</b> ${esc(f.descripcion)||'—'}</p>
+  <h2>Diagrama</h2><div class="diag">${svgString(f)}</div>
+  <h2>Tabla de pasos</h2><table><tr><th>#</th><th>Paso</th><th>Carril</th><th>Responsable</th><th>Plazo</th><th>Sistema</th><th>Checklist</th><th>Salidas</th><th>Notas</th></tr>${order.map((n,i)=>`<tr><td>${i+1}</td><td>${esc(n.label)}</td><td>${esc(ln(n.lane))}</td><td>${esc(n.resp)}</td><td>${esc(n.sla)}</td><td>${esc(n.sistema)}</td><td>${(n.checklist||[]).map(esc).join('<br>')}</td><td>${f.edges.filter(e=>e.from===n.id).map(e=>esc((e.label?e.label+' → ':'')+(nodeById(f,e.to)?.label||''))).join('<br>')}</td><td>${esc(n.notas)}</td></tr>`).join('')}</table>
+  <h2>Validación</h2>${items.length?`<table><tr><th>Sev.</th><th>Regla</th><th>Observación</th></tr>${items.map(i=>`<tr><td><span class="b ${i.sev}">${SEVN[i.sev]}</span></td><td>${i.code}</td><td>${esc(i.msg)}</td></tr>`).join('')}</table>`:'<p>Sin observaciones del validador.</p>'}
+  <h2>Hallazgos</h2>${(f.hallazgos||[]).length?`<table><tr><th>ID</th><th>Sev.</th><th>Ámbito</th><th>Hallazgo</th><th>Consecuencia</th><th>Acción</th><th>Estado</th><th>Nodo</th></tr>${f.hallazgos.map(h=>`<tr><td>${esc(h.id)}</td><td><span class="b ${h.sev}">${SEVN[h.sev]}</span></td><td>${esc(h.ambito)}</td><td>${esc(h.texto)}</td><td>${esc(h.consecuencia)}</td><td>${esc(h.accion)}</td><td>${esc(h.estado)}</td><td>${esc(nodeById(f,h.node)?.label||'')}</td></tr>`).join('')}</table>`:'<p>Sin hallazgos registrados.</p>'}
+  <p class="muted" style="margin-top:30px">Generado con Flujos HDS · ${new Date().toLocaleString('es-CL')}</p><script src="hub-home.js"></script>
+</body></html>`;
+  const w=window.open('','_blank');if(!w){toast('El navegador bloqueó la ventana; permite ventanas emergentes');return;}w.document.write(html);w.document.close();}
+
+/* =====================================================================
+   ARRANQUE
+   ===================================================================== */
+function boot(){
+  const had=load();
+  if(!had||!state.flows||!state.flows.length){state={flows:seedFlows(),activeId:'f_qx_tobe'};save();}
+  if(!cur())state.activeId=state.flows[0].id;
+  state.flows.forEach(f=>{f.hallazgos=f.hallazgos||[];f.nodes.forEach(n=>{n.checklist=n.checklist||[];});});
+  renderAll();requestAnimationFrame(fit);
+  if(location.search.includes('selftest=1'))selftest();
+}
+function selftest(){const r=[];const ok=(c,m)=>r.push((c?'✅ ':'❌ ')+m);
+  const tb=seedToBe(),as=seedAsIs();
+  ok(tb.nodes.length>40&&tb.edges.length>40,'TO-BE cargado: '+tb.nodes.length+' nodos, '+tb.edges.length+' conectores');
+  ok(as.hallazgos.length===33,'AS-IS con 33 hallazgos');
+  const vt=validate(tb),va=validate(as);
+  ok(!vt.some(i=>i.sev==='C'),'TO-BE sin críticos ('+vt.length+' observaciones)');
+  ok(va.filter(i=>i.sev==='C').length>10,'AS-IS con críticos: '+va.filter(i=>i.sev==='C').length);
+  ok(tb.edges.every(e=>edgePath(tb,e)),'Todas las aristas del TO-BE tienen ruta');
+  ok(stepOrder(tb).length===tb.nodes.length,'stepOrder cubre todos los nodos');
+  const ids=new Set(tb.nodes.map(n=>n.id));ok(tb.edges.every(e=>ids.has(e.from)&&ids.has(e.to)),'Aristas TO-BE referencian nodos existentes');
+  console.log('SELFTEST\n'+r.join('\n'));toast(r.filter(x=>x.startsWith('❌')).length?'Selftest con fallos (ver consola)':'Selftest OK');
+  window.__selftest=r;}
+boot();
+</script>
+</body>
+</html>

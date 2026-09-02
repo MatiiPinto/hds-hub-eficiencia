@@ -35,7 +35,7 @@
 <body class="bg-slate-50">
 
 <!-- SHARED_DATA matrices (fuente única HDS) -->
-<script src="SHARED_DATA/cartera.js"></script>
+<script>document.write('<scr'+'ipt src="SHARED_DATA/cartera.js?v='+Date.now()+'"></scr'+'ipt>');</script>
 
 <!-- HEADER -->
 <header class="bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow-lg sticky top-0 z-50">
@@ -48,7 +48,7 @@
       <div class="bg-white text-blue-900 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xl">H</div>
       <div>
         <h1 class="text-xl font-bold">Cartera de Servicios — HDS</h1>
-        <p class="text-blue-200 text-xs">Hospital del Sur · Versión 1.0 · Mayo 2026 · Base · Matriz</p>
+        <p class="text-blue-200 text-xs" id="hdr-sub">Hospital Del Salvador · Cartera base SSMSO + carteras revisadas por servicio</p>
       </div>
     </div>
     <div class="flex items-center gap-4 text-sm">
@@ -62,6 +62,7 @@
     <button data-view="dashboard" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-active">Dashboard</button>
     <button data-view="explorar" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Explorar Cartera</button>
     <button data-view="servicio" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Por Servicio Clínico</button>
+    <button data-view="revisiones" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Revisiones por Servicio</button>
     <button data-view="issues" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Issues y Brechas</button>
   </nav>
 </header>
@@ -90,6 +91,11 @@
     <div class="bg-white rounded-lg shadow p-4 border-l-4 border-rose-600">
       <div class="text-xs text-slate-500 uppercase">Productos</div>
       <div class="text-3xl font-bold text-slate-800" id="kpi-productos">—</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-teal-600">
+      <div class="text-xs text-slate-500 uppercase">Revisados por el servicio</div>
+      <div class="text-3xl font-bold text-slate-800" id="kpi-revisados">—</div>
+      <div class="text-xs text-slate-500" id="kpi-revisados-det"></div>
     </div>
   </div>
 
@@ -145,6 +151,14 @@
           <option value="HDS Coordina/Deriva">HDS Coordina/Deriva</option>
         </select>
       </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600">Revisión</label>
+        <select id="f-rev" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-sm bg-white">
+          <option value="">Todos</option>
+          <option value="__si">Solo revisados por el servicio</option>
+          <option value="__no">Solo pendientes de revisar</option>
+        </select>
+      </div>
       <div class="flex items-end">
         <button id="f-reset" class="w-full px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-sm">Limpiar filtros</button>
       </div>
@@ -164,6 +178,7 @@
             <th class="px-3 py-2 text-left">Área</th>
             <th class="px-3 py-2 text-left">Línea</th>
             <th class="px-3 py-2 text-left">Producto</th>
+            <th class="px-3 py-2 text-left">Cód. MAI</th>
             <th class="px-3 py-2 text-left">Servicio Clínico</th>
             <th class="px-3 py-2 text-left">Especialidad</th>
             <th class="px-3 py-2 text-left">Modalidad</th>
@@ -180,6 +195,15 @@
   <h2 class="text-2xl font-bold text-slate-800 mb-2">Vista por Servicio Clínico del HDS</h2>
   <p class="text-slate-500 mb-4 text-sm">Cartera agrupada por la unidad/servicio del organigrama del hospital.</p>
   <div id="servicios-container" class="space-y-2"></div>
+</section>
+
+<!-- VIEW: REVISIONES -->
+<section id="view-revisiones" class="view hidden">
+  <h2 class="text-2xl font-bold text-slate-800 mb-2">Carteras revisadas por el servicio</h2>
+  <p class="text-slate-500 mb-4 text-sm">La cartera base se armó desde el Maestro del SSMSO. A medida que cada
+  servicio clínico revisa la suya, su cartera reemplaza a la base y aporta el código MAI, el código interno del
+  HDS, el tipo de actividad, la producción REM y el área de influencia.</p>
+  <div id="revisiones-container" class="space-y-4"></div>
 </section>
 
 <!-- VIEW: ISSUES -->
@@ -208,7 +232,7 @@
   Cartera de Servicios HDS · Construida sobre la plantilla metodológica del SSMSO · v1.0
 </footer>
 
-<script src="data/cartera_raw.js"></script>
+<script>document.write('<scr'+'ipt src="data/cartera_raw.js?v='+Date.now()+'"></scr'+'ipt>');</script>
 <script>
 // ── MODO PÚBLICO / CONSULTA ──────────────────────────────────────────────
 // La copia publicada en la web se genera con PUBLIC_BUILD=true (el deploy lo
@@ -228,6 +252,12 @@ function applyPublicMode(){
 const RAW = window.CARTERA_RAW;
 const DATA = RAW.all;
 const ISSUES = RAW.issues;
+// Carteras ya revisadas por su servicio: el resumen de cada una y los productos
+// de la v1.0 que la revisión dejó fuera.
+const REVS = RAW.revisiones || [];
+const REEMPLAZADOS = RAW.reemplazados || [];
+const REV_NOMBRE = {}; REVS.forEach(r => REV_NOMBRE[r.id] = r.nombre);
+const fmtFecha = f => f ? f.split('-').reverse().join('-') : '';
 
 // === UTILIDADES ===
 function unique(arr, key) {
@@ -271,6 +301,11 @@ function renderDashboard() {
   document.getElementById('kpi-areas').textContent = new Set(DATA.map(r => `${r.centro}|${r.area}`)).size;
   document.getElementById('kpi-lineas').textContent = lineas;
   document.getElementById('kpi-productos').textContent = DATA.length.toLocaleString('es-CL');
+  const nRev = DATA.filter(r => r.rev).length;
+  document.getElementById('kpi-revisados').textContent =
+    nRev.toLocaleString('es-CL') + ' (' + Math.round(nRev*100/DATA.length) + '%)';
+  document.getElementById('kpi-revisados-det').textContent =
+    REVS.map(r => r.nombre).join(' · ') || 'ningún servicio revisado aún';
 
   // Chart centros
   new Chart(document.getElementById('chart-centros'), {
@@ -356,12 +391,14 @@ function setupExplorar() {
   selC.addEventListener('change', () => { updateAreas(); render(); });
   document.getElementById('f-area').addEventListener('change', render);
   document.getElementById('f-modalidad').addEventListener('change', render);
+  document.getElementById('f-rev').addEventListener('change', render);
   document.getElementById('f-search').addEventListener('input', render);
   document.getElementById('f-reset').addEventListener('click', () => {
     document.getElementById('f-search').value = '';
     selC.value = ''; updateAreas();
     document.getElementById('f-area').value = '';
     document.getElementById('f-modalidad').value = '';
+    document.getElementById('f-rev').value = '';
     render();
   });
   updateAreas();
@@ -372,13 +409,16 @@ function render() {
   const c = document.getElementById('f-centro').value;
   const a = document.getElementById('f-area').value;
   const m = document.getElementById('f-modalidad').value;
+  const v = document.getElementById('f-rev').value;
   
   let filtered = DATA;
+  if (v === '__si') filtered = filtered.filter(r => r.rev);
+  else if (v === '__no') filtered = filtered.filter(r => !r.rev);
   if (c) filtered = filtered.filter(r => r.centro === c);
   if (a) filtered = filtered.filter(r => r.area === a);
   if (m) filtered = filtered.filter(r => r.modalidad === m);
   if (q) filtered = filtered.filter(r => 
-    (r.producto+' '+r.linea+' '+r.estamento+' '+r.servicio).toLowerCase().includes(q)
+    (r.producto+' '+r.linea+' '+r.estamento+' '+r.servicio+' '+(r.mai||'')).toLowerCase().includes(q)
   );
   
   document.getElementById('result-count').textContent = filtered.length.toLocaleString('es-CL');
@@ -391,7 +431,12 @@ function render() {
       <td class="px-3 py-1 text-xs whitespace-nowrap">${r.centro.replace('Centro de Responsabilidad ','').replace('de Responsabilidad','')}</td>
       <td class="px-3 py-1 text-xs">${r.area}</td>
       <td class="px-3 py-1 text-xs">${r.linea}</td>
-      <td class="px-3 py-1 font-medium text-slate-800">${r.producto}</td>
+      <td class="px-3 py-1 font-medium text-slate-800">${r.producto}
+        ${r.rev ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 text-[10px] font-semibold align-middle"
+              title="Cartera revisada por ${REV_NOMBRE[r.rev]||r.rev}${r.rev_fecha ? ' · '+fmtFecha(r.rev_fecha) : ''}">✓ revisada</span>` : ''}
+        ${r.rev_estado === 'NUEVA' ? '<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold align-middle">nueva</span>' : ''}
+      </td>
+      <td class="px-3 py-1 text-xs text-slate-500 whitespace-nowrap">${r.mai || ''}</td>
       <td class="px-3 py-1 text-xs text-slate-600">${r.servicio || ''}</td>
       <td class="px-3 py-1 text-xs text-slate-600">${r.estamento || ''}</td>
       <td class="px-3 py-1 text-xs">
@@ -403,7 +448,7 @@ function render() {
   `).join('');
   
   if (filtered.length > limit) {
-    tbody.innerHTML += `<tr><td colspan="7" class="text-center py-3 text-slate-500 text-xs italic bg-slate-50">
+    tbody.innerHTML += `<tr><td colspan="8" class="text-center py-3 text-slate-500 text-xs italic bg-slate-50">
       Mostrando ${limit} de ${filtered.length} resultados. Refina los filtros para ver más.
     </td></tr>`;
   }
@@ -439,6 +484,76 @@ function renderServicios() {
   }).join('');
 }
 
+// === REVISIONES POR SERVICIO ===
+function renderRevisiones() {
+  const cont = document.getElementById('revisiones-container');
+  if (!REVS.length) { cont.innerHTML = '<div class="bg-white rounded-lg shadow p-6 text-slate-500 text-sm">'
+    + 'Todavía no hay carteras revisadas incorporadas.</div>'; return; }
+  cont.innerHTML = REVS.map(r => {
+    const prods = DATA.filter(p => p.rev === r.id);
+    const bajas = REEMPLAZADOS.filter(p => p.rev === r.id);
+    const nuevas = prods.filter(p => p.rev_estado === 'NUEVA' || p.nuevo);
+    const porEst = countBy(prods, 'estamento');
+    const rem = prods.reduce((a,p) => a + (parseInt(p.rem2025,10) || 0), 0);
+    const kpi = (n, l, col) => `<div class="text-center px-3">
+        <div class="text-2xl font-bold ${col||'text-slate-800'}">${n}</div>
+        <div class="text-[11px] text-slate-500 uppercase leading-tight">${l}</div></div>`;
+    return `
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="px-5 py-4 bg-gradient-to-r from-teal-700 to-teal-600 text-white flex flex-wrap items-center gap-4">
+        <div class="flex-1 min-w-[200px]">
+          <div class="text-lg font-bold">${r.nombre}</div>
+          <div class="text-teal-100 text-xs">${r.version}${r.fecha ? ' · revisada el '+fmtFecha(r.fecha) : ' · el archivo no indica fecha de revisión'}</div>
+          <div class="text-teal-200 text-[11px] mt-0.5">Archivo: ${r.archivo}</div>
+        </div>
+        <div class="flex gap-1 bg-white/10 rounded-lg py-2">
+          ${kpi(r.revisado, 'prestaciones', 'text-white')}
+          ${kpi(r.base, 'tenía la v1.0', 'text-teal-100')}
+          ${kpi('+'+r.altas, 'incorpora', 'text-emerald-200')}
+          ${kpi('−'+r.bajas, 'deja fuera', 'text-amber-200')}
+          ${rem ? kpi(rem.toLocaleString('es-CL'), 'REM 2025', 'text-white') : ''}
+        </div>
+      </div>
+      <div class="px-5 py-4 grid grid-cols-1 lg:grid-cols-2 gap-5 text-sm">
+        <div>
+          <h4 class="font-semibold text-slate-700 mb-2">Prestaciones por especialidad</h4>
+          <div class="space-y-1">
+            ${Object.entries(porEst).sort((a,b)=>b[1]-a[1]).map(([e,n]) => `
+              <div class="flex items-center gap-2">
+                <div class="flex-1 text-xs text-slate-600 truncate" title="${e}">${e || '(sin estamento)'}</div>
+                <div class="w-40 bg-slate-100 rounded h-3 overflow-hidden">
+                  <div class="bg-teal-500 h-3" style="width:${Math.round(n*100/Math.max(...Object.values(porEst)))}%"></div>
+                </div>
+                <div class="w-8 text-right text-xs font-semibold text-slate-700">${n}</div>
+              </div>`).join('')}
+          </div>
+          ${nuevas.length ? `
+            <h4 class="font-semibold text-slate-700 mt-4 mb-2">Incorpora (${nuevas.length})</h4>
+            <ul class="text-xs text-slate-600 space-y-0.5 max-h-56 overflow-auto scrollbar pr-1">
+              ${nuevas.map(p => `<li>• ${p.producto}
+                 <span class="text-slate-400">${p.estamento ? '· '+p.estamento : ''}</span></li>`).join('')}
+            </ul>` : ''}
+        </div>
+        <div>
+          ${bajas.length ? `
+            <h4 class="font-semibold text-slate-700 mb-2">De la v1.0 y no figuran en la revisión (${bajas.length})</h4>
+            <p class="text-[11px] text-slate-500 mb-2">No se borraron: quedan acá para confirmar con el servicio si
+               se dejaron de realizar o solo cambiaron de nombre.</p>
+            <ul class="text-xs text-slate-600 space-y-0.5 max-h-56 overflow-auto scrollbar pr-1">
+              ${bajas.map(p => `<li>• ${p.producto}
+                 <span class="text-slate-400">${p.estamento ? '· '+p.estamento : ''}</span></li>`).join('')}
+            </ul>` : '<p class="text-xs text-slate-500">La revisión mantiene todas las prestaciones de la v1.0.</p>'}
+          ${(r.pendientes||[]).length ? `
+            <h4 class="font-semibold text-slate-700 mt-4 mb-2">Quedó pendiente de aclarar (${r.pendientes.length})</h4>
+            <ul class="text-xs text-slate-600 space-y-1 max-h-56 overflow-auto scrollbar pr-1">
+              ${r.pendientes.map(p => `<li>• <b>${p.producto}</b> — ${p.falta}</li>`).join('')}
+            </ul>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // === ISSUES ===
 function renderIssues() {
   const t = document.getElementById('tbody-issues');
@@ -459,6 +574,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderDashboard();
   setupExplorar();
   renderServicios();
+  renderRevisiones();
   if(!PUBLIC) renderIssues();
 });
 </script>
