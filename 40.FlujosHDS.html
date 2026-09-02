@@ -903,8 +903,7 @@ function openDoc(f){const {score:sc,items}=score(f);const order=stepOrder(f);con
   <h2>Tabla de pasos</h2><table><tr><th>#</th><th>Paso</th><th>Carril</th><th>Responsable</th><th>Plazo</th><th>Sistema</th><th>Checklist</th><th>Salidas</th><th>Notas</th></tr>${order.map((n,i)=>`<tr><td>${i+1}</td><td>${esc(n.label)}</td><td>${esc(ln(n.lane))}</td><td>${esc(n.resp)}</td><td>${esc(n.sla)}</td><td>${esc(n.sistema)}</td><td>${(n.checklist||[]).map(esc).join('<br>')}</td><td>${f.edges.filter(e=>e.from===n.id).map(e=>esc((e.label?e.label+' → ':'')+(nodeById(f,e.to)?.label||''))).join('<br>')}</td><td>${esc(n.notas)}</td></tr>`).join('')}</table>
   <h2>Validación</h2>${items.length?`<table><tr><th>Sev.</th><th>Regla</th><th>Observación</th></tr>${items.map(i=>`<tr><td><span class="b ${i.sev}">${SEVN[i.sev]}</span></td><td>${i.code}</td><td>${esc(i.msg)}</td></tr>`).join('')}</table>`:'<p>Sin observaciones del validador.</p>'}
   <h2>Hallazgos</h2>${(f.hallazgos||[]).length?`<table><tr><th>ID</th><th>Sev.</th><th>Ámbito</th><th>Hallazgo</th><th>Consecuencia</th><th>Acción</th><th>Estado</th><th>Nodo</th></tr>${f.hallazgos.map(h=>`<tr><td>${esc(h.id)}</td><td><span class="b ${h.sev}">${SEVN[h.sev]}</span></td><td>${esc(h.ambito)}</td><td>${esc(h.texto)}</td><td>${esc(h.consecuencia)}</td><td>${esc(h.accion)}</td><td>${esc(h.estado)}</td><td>${esc(nodeById(f,h.node)?.label||'')}</td></tr>`).join('')}</table>`:'<p>Sin hallazgos registrados.</p>'}
-  <p class="muted" style="margin-top:30px">Generado con Flujos HDS · ${new Date().toLocaleString('es-CL')}</p><script src="hub-home.js"></script>
-</body></html>`;
+  <p class="muted" style="margin-top:30px">Generado con Flujos HDS · ${new Date().toLocaleString('es-CL')}</p></body></html>`;
   const w=window.open('','_blank');if(!w){toast('El navegador bloqueó la ventana; permite ventanas emergentes');return;}w.document.write(html);w.document.close();}
 
 /* =====================================================================
@@ -932,5 +931,6 @@ function selftest(){const r=[];const ok=(c,m)=>r.push((c?'✅ ':'❌ ')+m);
   window.__selftest=r;}
 boot();
 </script>
+<script src="hub-home.js"></script>
 </body>
 </html>
