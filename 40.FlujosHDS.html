@@ -914,8 +914,15 @@ function boot(){
   if(!had||!state.flows||!state.flows.length){state={flows:seedFlows(),activeId:'f_qx_tobe'};save();}
   if(!cur())state.activeId=state.flows[0].id;
   state.flows.forEach(f=>{f.hallazgos=f.hallazgos||[];f.nodes.forEach(n=>{n.checklist=n.checklist||[];});});
+  const q=new URLSearchParams(location.search);
+  if(q.get('flow')&&state.flows.some(f=>f.id===q.get('flow')))state.activeId=q.get('flow');
   renderAll();requestAnimationFrame(fit);
-  if(location.search.includes('selftest=1'))selftest();
+  if(q.get('pres')==='1')document.body.classList.add('pres');
+  if(q.get('legend')==='1'){legendOn=true;$('#legend').classList.add('show');}
+  if(q.get('sel')){const f=cur();if(nodeById(f,q.get('sel'))){selectNode(q.get('sel'),false);setTimeout(()=>{view.z=+q.get('zoom')||1.1;centerOn(q.get('sel'));},60);}}
+  else if(q.get('zoom')){setTimeout(()=>{view.z=+q.get('zoom');applyView();},60);}
+  if(q.get('tab'))showTab(q.get('tab'));
+  if(q.get('selftest')==='1')selftest();
 }
 function selftest(){const r=[];const ok=(c,m)=>r.push((c?'✅ ':'❌ ')+m);
   const tb=seedToBe(),as=seedAsIs();

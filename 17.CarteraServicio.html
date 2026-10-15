@@ -36,6 +36,8 @@
 
 <!-- SHARED_DATA matrices (fuente única HDS) -->
 <script>document.write('<scr'+'ipt src="SHARED_DATA/cartera.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<script>document.write('<scr'+'ipt src="SHARED_DATA/cartera_re3535.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<script>document.write('<scr'+'ipt src="SHARED_DATA/cartera_normativa.js?v='+Date.now()+'"></scr'+'ipt>');</script>
 
 <!-- HEADER -->
 <header class="bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow-lg sticky top-0 z-50">
@@ -48,7 +50,7 @@
       <div class="bg-white text-blue-900 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xl">H</div>
       <div>
         <h1 class="text-xl font-bold">Cartera de Servicios — HDS</h1>
-        <p class="text-blue-200 text-xs" id="hdr-sub">Hospital Del Salvador · Cartera base SSMSO + carteras revisadas por servicio</p>
+        <p class="text-blue-200 text-xs" id="hdr-sub">Hospital Del Salvador · Cartera oficial RE N° 3535 (30-09-2026) · cartera de trabajo SSMSO + revisiones por servicio</p>
       </div>
     </div>
     <div class="flex items-center gap-4 text-sm">
@@ -58,11 +60,13 @@
       </div>
     </div>
   </div>
-  <nav class="container mx-auto px-6 flex gap-2 pb-3 no-print">
+  <nav class="container mx-auto px-6 flex flex-wrap gap-2 pb-3 no-print">
     <button data-view="dashboard" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-active">Dashboard</button>
     <button data-view="explorar" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Explorar Cartera</button>
     <button data-view="servicio" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Por Servicio Clínico</button>
     <button data-view="revisiones" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Revisiones por Servicio</button>
+    <button data-view="re3535" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">📜 Cartera oficial RE-3535</button>
+    <button data-view="normativa" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">⚖️ Normativa y proceso SSMO</button>
     <button data-view="issues" class="nav-btn px-4 py-2 rounded-t-md text-sm font-medium tab-inactive">Issues y Brechas</button>
   </nav>
 </header>
@@ -73,6 +77,7 @@
 <section id="view-dashboard" class="view">
   <h2 class="text-2xl font-bold text-slate-800 mb-2">Vista General de la Cartera</h2>
   <p class="text-slate-500 mb-6 text-sm">Distribución de los productos del HDS por Centro de Responsabilidad, Área de Proceso y modalidad de provisión.</p>
+  <div id="banner-oficial" class="mb-6"></div>
 
   <!-- KPIs -->
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -206,6 +211,65 @@
   <div id="revisiones-container" class="space-y-4"></div>
 </section>
 
+<!-- VIEW: RE-3535 -->
+<section id="view-re3535" class="view hidden">
+  <h2 class="text-2xl font-bold text-slate-800 mb-1">Cartera oficial · Resolución Exenta N° 3535 (30-09-2026)</h2>
+  <p class="text-slate-500 mb-4 text-sm" id="re-sub"></p>
+  <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4" id="re-kpis"></div>
+  <div class="bg-white rounded-lg shadow p-4 mb-4">
+    <h3 class="font-semibold text-slate-700 mb-2">Cruce con la cartera de trabajo de esta plataforma</h3>
+    <div id="re-calce" class="text-sm"></div>
+  </div>
+  <div class="bg-white rounded-lg shadow p-4 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+      <div class="md:col-span-2"><label class="text-xs font-medium text-slate-600">Buscar</label>
+        <input id="re-q" type="text" placeholder="Prestación, código, estamento…" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-sm"></div>
+      <div><label class="text-xs font-medium text-slate-600">Servicio</label><select id="re-serv" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-sm bg-white"></select></div>
+      <div><label class="text-xs font-medium text-slate-600">Tipo</label><select id="re-tipo" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-sm bg-white"></select></div>
+      <div><label class="text-xs font-medium text-slate-600">Cruce con la plataforma</label><select id="re-calce-f" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-sm bg-white"></select></div>
+    </div>
+    <div class="mt-3 text-sm text-slate-600">Mostrando <span class="font-bold text-blue-700" id="re-count">0</span> prestaciones</div>
+  </div>
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="max-h-[600px] overflow-auto scrollbar">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-800 text-white sticky top-0 z-10"><tr>
+          <th class="px-3 py-2 text-left">Código</th><th class="px-3 py-2 text-left">Prestación</th><th class="px-3 py-2 text-left">Estamento / especialidad</th>
+          <th class="px-3 py-2 text-left">Servicio</th><th class="px-3 py-2 text-left">Tipo</th><th class="px-3 py-2 text-left">Cruce</th><th class="px-3 py-2 text-left">Pág.</th></tr></thead>
+        <tbody id="re-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- VIEW: NORMATIVA -->
+<section id="view-normativa" class="view hidden">
+  <h2 class="text-2xl font-bold text-slate-800 mb-1">Normativa y proceso de actualización de la cartera</h2>
+  <p class="text-slate-500 mb-4 text-sm">Cómo se actualiza y se aprueba la cartera de servicios en la Red Oriente, y qué le falta a la nuestra para cumplir el formato oficial.</p>
+  <div id="nor-docs" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5"></div>
+  <div class="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-5"><h3 class="font-semibold text-amber-900 mb-2">Qué significa para el HDS</h3><ul id="nor-impl" class="text-sm text-amber-900 space-y-1 list-disc pl-5"></ul></div>
+  <div class="bg-white rounded-lg shadow p-4 mb-5">
+    <h3 class="font-semibold text-slate-700 mb-1">Los 14 campos del formato oficial (Anexo 1) · cuánto los cubrimos hoy</h3>
+    <p class="text-xs text-slate-500 mb-3">Porcentaje de prestaciones con el dato: RE-3535 (cartera oficial) y cartera de trabajo de esta plataforma.</p>
+    <div class="overflow-auto"><table class="w-full text-sm"><thead class="bg-slate-800 text-white"><tr>
+      <th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Campo</th><th class="px-3 py-2 text-left">Qué pide</th>
+      <th class="px-3 py-2 text-center">RE-3535</th><th class="px-3 py-2 text-center">Plataforma</th><th class="px-3 py-2 text-left">Nota</th></tr></thead>
+      <tbody id="nor-campos"></tbody></table></div>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+    <div class="bg-white rounded-lg shadow p-4"><h3 class="font-semibold text-slate-700 mb-2">Macroprocesos (5 modelos de atención MINSAL)</h3><div id="nor-macro" class="text-sm space-y-1"></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><h3 class="font-semibold text-slate-700 mb-2">Quién hace qué</h3><div id="nor-roles" class="text-sm space-y-1"></div></div>
+  </div>
+  <div class="bg-white rounded-lg shadow p-4 mb-5">
+    <h3 class="font-semibold text-slate-700 mb-2">Etapas, plazos y matriz RACI</h3>
+    <div class="overflow-auto"><table class="w-full text-sm"><thead class="bg-slate-800 text-white"><tr>
+      <th class="px-3 py-2 text-left">Act.</th><th class="px-3 py-2 text-left">Actividad</th><th class="px-3 py-2 text-left">R · ejecuta</th>
+      <th class="px-3 py-2 text-left">A · responde</th><th class="px-3 py-2 text-left">C · se consulta</th><th class="px-3 py-2 text-left">I · se informa</th></tr></thead>
+      <tbody id="nor-raci"></tbody></table></div>
+  </div>
+  <div class="bg-white rounded-lg shadow p-4"><h3 class="font-semibold text-slate-700 mb-2">Indicador y registros</h3><div id="nor-ind" class="text-sm"></div></div>
+</section>
+
 <!-- VIEW: ISSUES -->
 <section id="view-issues" class="view hidden">
   <h2 class="text-2xl font-bold text-slate-800 mb-2">Issues y Brechas Detectadas</h2>
@@ -229,7 +293,7 @@
 </main>
 
 <footer class="bg-slate-100 border-t mt-12 py-4 text-center text-xs text-slate-500">
-  Cartera de Servicios HDS · Construida sobre la plantilla metodológica del SSMSO · v1.0
+  Cartera de Servicios HDS · cartera oficial RE N° 3535 (30-09-2026) · proceso SSMO PROC-ACSE-8.1-0003 v03 · cartera de trabajo sobre la plantilla del SSMSO
 </footer>
 
 <script>document.write('<scr'+'ipt src="data/cartera_raw.js?v='+Date.now()+'"></scr'+'ipt>');</script>
@@ -554,6 +618,97 @@ function renderRevisiones() {
   }).join('');
 }
 
+// === CARTERA OFICIAL RE-3535 ===
+const RE = window.CARTERA_RE3535 || null;
+const NOR = window.CARTERA_NORMATIVA || null;
+const CALCE_TXT = {igual:'igual', nombre_ajustado:'nombre ajustado', cambia_estamento:'cambia estamento',
+                   cambia_servicio:'otro servicio en la plataforma', solo_re:'solo en la RE'};
+const CALCE_COL = {igual:'bg-emerald-100 text-emerald-800', nombre_ajustado:'bg-sky-100 text-sky-800',
+                   cambia_estamento:'bg-amber-100 text-amber-800', cambia_servicio:'bg-orange-100 text-orange-800', solo_re:'bg-rose-100 text-rose-800'};
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderBannerOficial(){
+  const el = document.getElementById('banner-oficial'); if(!el || !RE) return;
+  const R = RE.resumen;
+  el.innerHTML = `<div class="bg-blue-50 border border-blue-300 rounded-lg p-4 text-sm text-blue-900 flex flex-wrap gap-3 items-center">
+    <div class="flex-1 min-w-[260px]"><b>Cartera oficial vigente: Resolución Exenta N° 3535 (30-09-2026)</b> · ${R.prestaciones.toLocaleString('es-CL')} prestaciones.
+    Esta vista muestra la cartera de trabajo (${DATA.length.toLocaleString('es-CL')} productos, base SSMSO + revisiones); ${R.calce.igual.toLocaleString('es-CL')} coinciden con la resolución.
+    ${NOR?'El procedimiento SSMO para actualizarla es el PROC-ACSE-8.1-0003 v03 (Res. N° 2020032-18, 30-12-2025).':''}</div>
+    <button class="px-3 py-1.5 rounded bg-blue-700 text-white text-xs" onclick="showView('re3535')">Ver la RE-3535</button>
+    ${NOR?`<button class="px-3 py-1.5 rounded bg-amber-600 text-white text-xs" onclick="showView('normativa')">Normativa y proceso</button>`:''}</div>`;
+}
+function setupRE(){
+  if(!RE){ document.getElementById('re-sub').textContent='No se cargó SHARED_DATA/cartera_re3535.js'; return; }
+  const R = RE.resumen, F = RE.fuente, P = RE.prestaciones;
+  document.getElementById('re-sub').innerHTML = `${esc(F.documento)}. Deja sin efecto la ${esc(F.deja_sin_efecto)}. ${esc(F.lectura)}.`;
+  const k = [['Prestaciones', R.prestaciones], ['Servicios', new Set(P.map(x=>x.serv)).size], ['Con código FONASA', R.con_codigo_fonasa],
+             ['Sin código (S/C)', R.sin_codigo], ['Fuera del Arancel MAI 2026', R.fuera_arancel_mai_2026], ['Texto cortado en el PDF', R.texto_cortado]];
+  document.getElementById('re-kpis').innerHTML = k.map(([l,v]) => `<div class="bg-white rounded-lg shadow p-3 border-l-4 border-blue-600">
+    <div class="text-[11px] text-slate-500 uppercase">${l}</div><div class="text-2xl font-bold text-slate-800">${Number(v).toLocaleString('es-CL')}</div></div>`).join('');
+  const C = R.calce;
+  const fila = (l,v,col) => `<div class="flex items-center gap-2 mb-1"><span class="px-2 py-0.5 rounded text-xs ${col}">${l}</span><b>${v.toLocaleString('es-CL')}</b></div>`;
+  document.getElementById('re-calce').innerHTML = `<div class="grid md:grid-cols-2 gap-x-8">
+    <div>${fila('igual a la plataforma',C.igual,CALCE_COL.igual)}${fila('mismo, con nombre ajustado',C.nombre_ajustado,CALCE_COL.nombre_ajustado)}
+      ${fila('cambia el estamento',C.cambia_estamento,CALCE_COL.cambia_estamento)}${fila('la plataforma la pone en otro servicio',C.cambia_servicio,CALCE_COL.cambia_servicio)}
+      ${fila('solo en la resolución',C.solo_re,CALCE_COL.solo_re)}</div>
+    <div class="text-slate-600 text-xs leading-relaxed"><p class="mb-1"><b>${(C.solo_plataforma_repetidas+C.solo_plataforma_fuera_de_la_re).toLocaleString('es-CL')}</b> productos de la plataforma no están en la resolución:
+      ${C.solo_plataforma_repetidas} son repetidos en otra línea o área y ${C.solo_plataforma_fuera_de_la_re} quedan fuera (enfermería de UPC/UHI, Urgencia, Anestesia, entre otros).</p>
+      <p>La unificación (qué se mantiene, qué cambia de servicio, qué se agrega) está en «Cartera RE-3535 vs Plataforma - Unificación.xlsx», en 3.CARTERA DE SERVICIOS/RE-3535 (30-09-2026).</p></div></div>`;
+  const opt = (id, vals, t) => document.getElementById(id).innerHTML = `<option value="">${t}</option>` + vals.map(v => `<option value="${esc(v)}">${esc(CALCE_TXT[v]||v)}</option>`).join('');
+  opt('re-serv', [...new Set(P.map(x=>x.serv))].sort(), 'Todos los servicios');
+  opt('re-tipo', [...new Set(P.map(x=>x.tipo))].sort(), 'Todos los tipos');
+  opt('re-calce-f', Object.keys(CALCE_TXT), 'Todos');
+  ['re-q','re-serv','re-tipo','re-calce-f'].forEach(id => document.getElementById(id).addEventListener(id==='re-q'?'input':'change', renderRE));
+  renderRE();
+}
+function renderRE(){
+  const q = document.getElementById('re-q').value.toLowerCase(), sv = document.getElementById('re-serv').value,
+        tp = document.getElementById('re-tipo').value, cc = document.getElementById('re-calce-f').value;
+  const L = RE.prestaciones.filter(x => (!sv||x.serv===sv) && (!tp||x.tipo===tp) && (!cc||x.calce===cc) &&
+            (!q || ((x.cod||'')+' '+(x.nombre||x.pre)+' '+x.est+' '+x.serv).toLowerCase().includes(q)));
+  document.getElementById('re-count').textContent = L.length.toLocaleString('es-CL');
+  const lim = 600;
+  document.getElementById('re-tbody').innerHTML = L.slice(0,lim).map(x => `<tr class="product-row border-b border-slate-100">
+    <td class="px-3 py-1 text-xs whitespace-nowrap ${x.ar===false?'text-rose-700':'text-slate-500'}" title="${x.ar===false?'no está en el Arancel MAI 2026':''}">${esc(x.cod||'S/C')}</td>
+    <td class="px-3 py-1 font-medium text-slate-800">${esc(x.nombre||x.pre)}${x.cort?' <span class="text-[10px] text-slate-400" title="El documento corta el texto">(cortado en el PDF)</span>':''}</td>
+    <td class="px-3 py-1 text-xs text-slate-600">${esc(x.est)}</td><td class="px-3 py-1 text-xs text-slate-600">${esc(x.serv)}</td>
+    <td class="px-3 py-1 text-xs">${esc(x.tipo)}</td>
+    <td class="px-3 py-1 text-xs"><span class="px-2 py-0.5 rounded ${CALCE_COL[x.calce]||'bg-slate-100'}">${esc(CALCE_TXT[x.calce]||x.calce||'')}</span></td>
+    <td class="px-3 py-1 text-xs text-slate-500">${x.pag||''}</td></tr>`).join('') +
+    (L.length>lim?`<tr><td colspan="7" class="text-center py-3 text-slate-500 text-xs italic bg-slate-50">Mostrando ${lim} de ${L.length}. Refina los filtros.</td></tr>`:'');
+}
+// === NORMATIVA ===
+function renderNormativa(){
+  if(!NOR) return;
+  const f = d => d ? d.split('-').reverse().join('-') : '';
+  document.getElementById('nor-docs').innerHTML = NOR.documentos.map(d => `<div class="bg-white rounded-lg shadow p-4 border-l-4 ${d.vigente?'border-emerald-600':'border-slate-300 opacity-80'}">
+    <div class="flex items-center gap-2 mb-1"><span class="px-2 py-0.5 rounded text-[11px] font-semibold ${d.vigente?'bg-emerald-100 text-emerald-800':'bg-slate-200 text-slate-600'}">${d.vigente?'VIGENTE':'SIN EFECTO'}</span>
+      <span class="text-xs text-slate-500">${esc(d.tipo)} ${esc(d.numero)} · ${f(d.fecha)}</span></div>
+    <div class="font-semibold text-slate-800">${esc(d.titulo)}</div>
+    ${d.codigo?`<div class="text-xs text-slate-600 mt-1">${esc(d.codigo)}</div>`:''}
+    ${d.emite?`<div class="text-xs text-slate-500 mt-1">${esc(d.emite)}</div>`:''}
+    ${d.detalle?`<div class="text-xs text-slate-500 mt-1">${esc(d.detalle)}</div>`:''}
+    ${d.deja_sin_efecto?`<div class="text-xs text-slate-500 mt-1">Deja sin efecto: ${esc(d.deja_sin_efecto)}</div>`:''}
+    ${d.reemplazada_por?`<div class="text-xs text-slate-500 mt-1">Reemplazada por: ${esc(d.reemplazada_por)}</div>`:''}
+    ${d.elaboracion?`<details class="mt-2 text-xs text-slate-500"><summary>Elaboración y firma</summary><p class="mt-1">${esc(d.elaboracion)}</p><p class="mt-1">${esc(d.firma||'')}</p></details>`:''}
+  </div>`).join('');
+  document.getElementById('nor-impl').innerHTML = NOR.implicancias_hds.map(t => `<li>${esc(t)}</li>`).join('');
+  const bar = c => `<div class="flex items-center gap-1 justify-center"><div class="w-16 bg-slate-100 rounded h-2 overflow-hidden"><div class="h-2 ${c.pct>=90?'bg-emerald-500':c.pct>=40?'bg-amber-500':'bg-rose-500'}" style="width:${c.pct}%"></div></div><span class="text-xs w-9 text-right">${c.pct}%</span></div>`;
+  document.getElementById('nor-campos').innerHTML = NOR.campos.map(c => `<tr class="border-b border-slate-100 align-top">
+    <td class="px-3 py-2 text-xs text-slate-500">${c.n}</td><td class="px-3 py-2 font-medium">${esc(c.campo)}</td>
+    <td class="px-3 py-2 text-xs text-slate-600">${esc(c.definicion)}</td><td class="px-3 py-2">${bar(c.re)}</td><td class="px-3 py-2">${bar(c.plataforma)}</td>
+    <td class="px-3 py-2 text-xs text-slate-600">${esc(c.nota)}</td></tr>`).join('');
+  document.getElementById('nor-macro').innerHTML = NOR.macroprocesos.map(m => `<div><b>${esc(m.nombre)}</b> — <span class="text-slate-600">${esc(m.def)}</span></div>`).join('');
+  document.getElementById('nor-roles').innerHTML = NOR.roles.map(r => `<div><b>${esc(r.rol)}</b> — <span class="text-slate-600">${esc(r.funcion)}</span></div>`).join('');
+  document.getElementById('nor-raci').innerHTML = NOR.etapas.map(e => `<tr class="bg-blue-50"><td colspan="6" class="px-3 py-2 font-semibold text-blue-900">${esc(e.etapa)} · plazo ${esc(e.plazo)}</td></tr>` +
+    e.actividades.map(a => `<tr class="border-b border-slate-100 align-top"><td class="px-3 py-2 text-xs font-semibold">${a.id}</td><td class="px-3 py-2">${esc(a.nombre)}</td>
+      <td class="px-3 py-2 text-xs">${esc(a.R)}</td><td class="px-3 py-2 text-xs">${esc(a.A)}</td><td class="px-3 py-2 text-xs">${esc(a.C||'—')}</td><td class="px-3 py-2 text-xs">${esc(a.I||'—')}</td></tr>`).join('')).join('');
+  const I = NOR.indicador;
+  document.getElementById('nor-ind').innerHTML = `<p><b>${esc(I.nombre)}</b>: ${esc(I.formula)}. ${esc(I.criterio)}. ${esc(I.periodicidad)}.</p>
+    <p class="mt-2 text-slate-600">Información adicional obligatoria en la propuesta: ${NOR.informacion_adicional.map(esc).join(' · ')}.</p>
+    <p class="mt-2 text-slate-600">Registros: ${NOR.registros.map(esc).join(' · ')}.</p>
+    ${(NOR.archivos_trabajo||[]).length?`<p class="mt-3 font-semibold text-slate-700">Archivos de trabajo</p><ul class="list-disc pl-5 text-slate-600">${NOR.archivos_trabajo.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>`:''}`;
+}
+
 // === ISSUES ===
 function renderIssues() {
   const t = document.getElementById('tbody-issues');
@@ -575,6 +730,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupExplorar();
   renderServicios();
   renderRevisiones();
+  renderBannerOficial(); setupRE(); renderNormativa();
   if(!PUBLIC) renderIssues();
 });
 </script>
